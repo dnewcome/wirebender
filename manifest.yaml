@@ -1,0 +1,20 @@
+name: "wirebender"
+units: "mm"
+out_dir: "build"
+
+parts:
+  - name: "extruder"
+    file: "extruder.glb"
+    xform: {t: [0, 0, 0], r_deg: [0, 0, 0], s: 1.0}
+
+  - name: "motor"
+    file: "motor.glb"
+    xform: {t: [0, 0, 0], r_deg: [0, 0, 0], s: 1.0}
+
+  - name: "bender-head"
+    file: "bender-head.scad"
+    xform: {t: [0, 0, 0], r_deg: [0, 0, 0], s: 1.0}
+
+  - name: "motor-flange"
+    file: "motor-flange.scad"
+    xform: {t: [0, 0, 0], r_deg: [0, 0, 0], s: 1.0}
