@@ -22,7 +22,7 @@ parts:
   #   motor face remains at world Z=0.
   - name: motor
     file: motor.scad
-    xform: {t: [0, 0, 0], r_deg: [180, 0, 0], s: 1.0}
+    xform: {t: [0, 0, 0], r_deg: [180, 0, -90], s: 1.0}
     anchors:
       # Shaft centerline at the motor face (SCAD X=5, Y=0, Z=0).
       shaft_face: {t: [5, 0, 0], axis: [0, 0, -1]}
