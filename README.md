@@ -35,6 +35,78 @@ Wire is fed from a spool using a 3D printer extruder, through a rotating feed tu
 | File | Description |
 |------|-------------|
 | `bender-head.scad` | OpenSCAD model of the bending head motor mount / bending flange |
+| `motor-flange.scad` | OpenSCAD model of the motor shaft flange / hub |
+| `manifest.yaml` | Assembly manifest describing all parts, transforms, and mating constraints |
+| `assemble.py` | Python script that builds the full CAD assembly from the manifest |
+
+## Assembly Script
+
+`assemble.py` reads a YAML manifest, loads all parts (STEP, STL, GLB/GLTF, OpenSCAD, or CadQuery `.py`), applies transforms and mating constraints, and exports a combined assembly.
+
+### Setup
+
+```bash
+python3 -m venv py
+source py/bin/activate
+pip install cadquery trimesh numpy pyyaml
+```
+
+OpenSCAD is required to compile `.scad` files. Install it at [openscad.org](https://openscad.org/) or via `brew install openscad`.
+
+### Running
+
+```bash
+python3 assemble.py manifest.yaml
+```
+
+Outputs go to the directory specified by `out_dir` in the manifest (default: `build/`):
+
+- `build/assembly.step` — full assembly in STEP format (best for CAD import)
+- `build/assembly.glb` — visual preview in GLB format (open in any 3D viewer)
+
+To specify output paths explicitly:
+
+```bash
+python3 assemble.py manifest.yaml --out my_assembly.step --outglb my_assembly.glb
+```
+
+### Manifest Format
+
+```yaml
+name: "my-assembly"   # assembly name
+units: "mm"           # "mm" or "inch"
+out_dir: "build"      # output directory (relative to manifest file)
+
+parts:
+  - name: motor
+    file: motor.glb
+    xform:
+      t: [0, 0, 0]       # translation in manifest units (mm)
+      r_deg: [0, 0, 0]   # rotation in degrees, applied X → Y → Z
+      s: 1000.0           # scale factor (use 1000 for GLB files in meters)
+
+  - name: bracket
+    file: bracket.scad
+    xform: {t: [0, 0, 0], r_deg: [0, 0, 0], s: 1.0}
+    anchors:
+      # Named points on this part, in the part's local SCAD/model coordinates
+      mount_face: {t: [0, 0, 11], axis: [0, 0, 1]}
+
+  - name: insert
+    file: insert.scad
+    xform: {t: [0, 0, 0], r_deg: [180, 0, 0], s: 1.0}
+    anchors:
+      bore_top: {t: [0, 0, 14], axis: [0, 0, 1]}
+    mates:
+      # Align bore_top of this part to mount_face of bracket
+      - my_anchor: bore_top
+        to_part: bracket
+        to_anchor: mount_face
+```
+
+**Anchor mating:** When a part has a `mates` entry, its position in the assembly is determined by aligning the named anchor point and axis to the target part's anchor. The part's `xform.r_deg` is applied as a pre-rotation before mating (to orient the part's natural axis). `xform.t` is ignored when mates are defined.
+
+**Supported file types:** `.step`/`.stp`, `.stl`, `.glb`/`.gltf`/`.obj`/`.ply`, `.scad`, `.py` (CadQuery generator).
 
 ## Bending Head Design Notes (`bender-head.scad`)
 
