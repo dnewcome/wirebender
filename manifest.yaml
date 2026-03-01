@@ -68,6 +68,6 @@ parts:
   # TODO: rotate so the extruder output faces −Y (toward bender-head),
   #       and adjust Y offset to match actual tube length.
   # TODO: re-verify s=1000 gives correct physical extruder dimensions.
-  - name: extruder
-    file: extruder.glb
-    xform: {t: [6.35, 80, 5.5], r_deg: [0, 0, 0], s: 1000.0}
+  # - name: extruder
+  #  file: extruder.glb
+  #  xform: {t: [6.35, 80, 5.5], r_deg: [0, 0, 0], s: 1000.0}

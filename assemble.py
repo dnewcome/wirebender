@@ -440,6 +440,72 @@ def cq_load_part(
 
 
 # ----------------------------
+# Isometric PNG render
+# ----------------------------
+
+def render_assembly_png(
+    part_order: List[str],
+    part_world: Dict[str, Tuple[np.ndarray, np.ndarray]],
+    part_stl: Dict[str, Path],
+    out_png: Path,
+    out_dir: Path,
+) -> None:
+    openscad = which("openscad") or (
+        "/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD"
+        if os.path.exists("/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD")
+        else None
+    )
+    if not openscad:
+        raise RuntimeError("OpenSCAD CLI not found, needed for PNG rendering")
+
+    # Compute assembly bounding box from transformed mesh vertices for camera placement
+    all_verts: List[np.ndarray] = []
+    for name in part_order:
+        stl = part_stl.get(name)
+        if not stl or not stl.exists():
+            continue
+        mesh = load_mesh_any(stl)
+        R, t = part_world[name]
+        v = np.array(mesh.vertices)
+        all_verts.append((R @ v.T).T + t)
+
+    if not all_verts:
+        raise RuntimeError("No STL parts available for PNG rendering")
+
+    verts = np.vstack(all_verts)
+    center = (verts.min(axis=0) + verts.max(axis=0)) / 2.0
+    dist = float(np.max(verts.max(axis=0) - verts.min(axis=0))) * 2.5
+
+    # Generate a temporary SCAD file that imports each part STL at its world transform
+    def fmt_mat(R: np.ndarray, t: np.ndarray) -> str:
+        rows = [f"[{R[i,0]:.8g},{R[i,1]:.8g},{R[i,2]:.8g},{t[i]:.6g}]" for i in range(3)]
+        rows.append("[0,0,0,1]")
+        return "[" + ",".join(rows) + "]"
+
+    view_scad = out_dir / "assembly_view.scad"
+    lines = []
+    for name in part_order:
+        stl = part_stl.get(name)
+        if not stl or not stl.exists():
+            continue
+        R, t = part_world[name]
+        lines.append(f'multmatrix({fmt_mat(R, t)}) import("{stl.resolve()}");')
+    view_scad.write_text("\n".join(lines) + "\n")
+
+    cx, cy, cz = center
+    cmd = [
+        openscad, "--render",
+        "--imgsize=1920,1080",
+        "--projection=ortho",
+        f"--camera={cx:.2f},{cy:.2f},{cz:.2f},55,0,45,{dist:.1f}",
+        "-o", str(out_png),
+        str(view_scad),
+    ]
+    subprocess.run(cmd, check=True)
+    print(f"Wrote PNG:  {out_png}")
+
+
+# ----------------------------
 # Main build
 # ----------------------------
 
@@ -516,7 +582,19 @@ def build_assembly(manifest: Dict[str, Any], manifest_path: Path) -> Tuple[cq.As
         R, t_mm = part_world[name]
         assy.add(obj, name=name, loc=matrix_to_location(R, t_mm))
 
-    return assy, out_dir
+    # Map each part name to its intermediate STL path (used for PNG rendering)
+    part_stl: Dict[str, Path] = {}
+    for name in part_order:
+        part_file = part_cfgs[name]["_path"]
+        suffix = part_file.suffix.lower()
+        if suffix == ".stl":
+            part_stl[name] = part_file
+        elif suffix in [".glb", ".gltf", ".obj", ".ply"]:
+            part_stl[name] = out_dir / f"{part_file.stem}.converted.stl"
+        elif suffix == ".scad":
+            part_stl[name] = out_dir / f"{part_file.stem}.scad.stl"
+
+    return assy, out_dir, part_order, part_world, part_stl
 
 
 def main() -> int:
@@ -524,12 +602,13 @@ def main() -> int:
     ap.add_argument("manifest", type=str, help="Path to manifest.yaml/.yml/.json")
     ap.add_argument("--out", type=str, default="assembly.step", help="Output STEP path")
     ap.add_argument("--outglb", type=str, default="", help="Optional output GLB path")
+    ap.add_argument("--outpng", type=str, default="assembly.png", help="Output isometric PNG path ('' to skip)")
     args = ap.parse_args()
 
     manifest_path = Path(args.manifest).resolve()
     manifest = load_manifest(manifest_path)
 
-    assy, out_dir = build_assembly(manifest, manifest_path)
+    assy, out_dir, part_order, part_world, part_stl = build_assembly(manifest, manifest_path)
 
     out_step = Path(args.out)
     if not out_step.is_absolute():
@@ -542,12 +621,17 @@ def main() -> int:
         out_glb = Path(args.outglb)
         if not out_glb.is_absolute():
             out_glb = out_dir / out_glb.name
-        # CadQuery exports GLB via exporters (works for quick visual sanity checks)
         try:
             assy.save(str(out_glb))
             print(f"Wrote GLB:  {out_glb}")
         except Exception as e:
             print(f"GLB export failed (STEP still written): {e}", file=sys.stderr)
+
+    if args.outpng:
+        out_png = Path(args.outpng)
+        if not out_png.is_absolute():
+            out_png = out_dir / out_png.name
+        render_assembly_png(part_order, part_world, part_stl, out_png, out_dir)
 
     return 0
 
