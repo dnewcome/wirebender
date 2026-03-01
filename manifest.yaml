@@ -2,19 +2,72 @@ name: "wirebender"
 units: "mm"
 out_dir: "build"
 
+# World coordinate convention:
+#   +Z = up (shaft axis)
+#   +Y = rear of machine (toward extruder / open side of bender-head)
+#   Motor face sits at Z=0; bender-head occupies Z=0 to Z=11.
+#
+# Motor GLB notes:
+#   The shaft must point in +Z and the mounting face must sit at Z=0 in world.
+#   Adjust motor xform.t and r_deg to match the actual GLB orientation.
+#   s=1000 (meters→mm) — re-verify this scale matches your motor's physical size.
+
 parts:
-  - name: "extruder"
-    file: "extruder.glb"
-    xform: {t: [0, 0, 0], r_deg: [0, 0, 0], s: 1.0}
 
-  - name: "motor"
-    file: "motor.glb"
-    xform: {t: [0, 0, 0], r_deg: [0, 0, 0], s: 1.0}
+  # ── Motor ───────────────────────────────────────────────────────────────────
+  # Placed at origin. Shaft extends in +Z; motor body extends in −Z.
+  # TODO: rotate and translate to put the motor face (shaft side) at Z=0
+  #       and the shaft center at (X=0, Y=6mm) to align with the bender-head
+  #       clearance pocket and motor-flange bore.
+  - name: motor
+    file: motor.glb
+    xform: {t: [0, 0, 0], r_deg: [0, 0, 0], s: 1000.0}
+    anchors:
+      # Front face of motor where shaft protrudes, at the shaft centerline.
+      # Adjust t to match actual shaft-center position in the GLB.
+      shaft_face: {t: [0, 6, 0], axis: [0, 0, 1]}
 
-  - name: "bender-head"
-    file: "bender-head.scad"
+  # ── Bender-head ─────────────────────────────────────────────────────────────
+  # Mounts on motor face via M4 screws at X=±17.5mm.
+  # Bottom face (Z=0 in SCAD) sits on the motor mounting face.
+  # Back cutaway (removes SCAD Y>3mm) provides clearance for shaft and flange hub.
+  # Tube channel enters at X=6.35mm, Z=5.5mm from the +Y direction.
+  # TODO: set xform.t to align the bender-head bottom face with the motor face
+  #       in world space (once you know the motor face Z from the GLB).
+  - name: bender-head
+    file: bender-head.scad
     xform: {t: [0, 0, 0], r_deg: [0, 0, 0], s: 1.0}
+    anchors:
+      # Where motor-flange barrel enters from below (SCAD clearance pocket center).
+      # Pocket is at X=0, Y=6mm in SCAD frame, bottom face Z=0.
+      barrel_entry: {t: [0, 6, 0], axis: [0, 0, -1]}
 
-  - name: "motor-flange"
-    file: "motor-flange.scad"
-    xform: {t: [0, 0, 0], r_deg: [0, 0, 0], s: 1.0}
+  # ── Motor flange ─────────────────────────────────────────────────────────────
+  # SCAD frame: flange disk at Z=0–2mm, barrel/hub at Z=2–14mm.
+  # r_deg [180,0,0] flips the part so the flange disk ends up on top in world:
+  #   barrel bottom (SCAD Z=14) → world Z=0  (motor face, bore entrance)
+  #   barrel top   (SCAD Z=2)  → world Z=12 (1mm above bender-head top)
+  #   flange disk  (SCAD Z=0–2)→ world Z=12–14 (flange sits above bender-head)
+  # Bore ID=5mm grips motor shaft; set screw at world Z=6mm secures it.
+  - name: motor-flange
+    file: motor-flange.scad
+    xform: {t: [0, 0, 0], r_deg: [180, 0, 0], s: 1.0}
+    anchors:
+      # Top of barrel in SCAD (Z=14) = bore entrance where shaft enters.
+      # After the 180° pre-rotation this becomes the bottom in world (Z=0).
+      bore_entrance: {t: [0, 0, 14], axis: [0, 0, 1]}
+    mates:
+      - my_anchor: bore_entrance
+        to_part: bender-head
+        to_anchor: barrel_entry
+
+  # ── Extruder ─────────────────────────────────────────────────────────────────
+  # Not yet physically attached. Will connect via a metal tube that passes
+  # through the bender-head tube channel (X=6.35mm, Z=5.5mm, entering from +Y).
+  # Positioned upstream in +Y at roughly the tube mouth location.
+  # TODO: rotate so the extruder output faces −Y (toward bender-head),
+  #       and adjust Y offset to match actual tube length.
+  # TODO: re-verify s=1000 gives correct physical extruder dimensions.
+  - name: extruder
+    file: extruder.glb
+    xform: {t: [6.35, 80, 5.5], r_deg: [0, 0, 0], s: 1000.0}

@@ -62,7 +62,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -145,6 +145,106 @@ def xform_to_location(
 
     loc = cq.Location(cq.Vector(tx, ty, tz)) * loc
     return loc
+
+
+def xform_to_matrix(
+    t: Tuple[float, float, float],
+    r_deg: Tuple[float, float, float],
+    units_mm_per_unit: float,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Returns (R 3×3, t_mm 3-vector) matching the rotation convention of xform_to_location."""
+    tx, ty, tz = [float(x) * units_mm_per_unit for x in t]
+    rx, ry, rz = [deg2rad(x) for x in r_deg]
+    cx, sx = math.cos(rx), math.sin(rx)
+    cy, sy = math.cos(ry), math.sin(ry)
+    cz, sz = math.cos(rz), math.sin(rz)
+    Rx = np.array([[1, 0, 0], [0, cx, -sx], [0, sx, cx]], dtype=float)
+    Ry = np.array([[cy, 0, sy], [0, 1, 0], [-sy, 0, cy]], dtype=float)
+    Rz = np.array([[cz, -sz, 0], [sz, cz, 0], [0, 0, 1]], dtype=float)
+    return Rx @ Ry @ Rz, np.array([tx, ty, tz], dtype=float)
+
+
+def rotation_matrix_from_vectors(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Minimal rotation matrix that rotates unit vector a onto unit vector b."""
+    a = a / np.linalg.norm(a)
+    b = b / np.linalg.norm(b)
+    c = float(np.dot(a, b))
+    if abs(c + 1.0) < 1e-9:  # antiparallel: 180° around any perpendicular axis
+        perp = np.array([1.0, 0.0, 0.0]) if abs(a[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+        ax = np.cross(a, perp)
+        ax /= np.linalg.norm(ax)
+        return 2.0 * np.outer(ax, ax) - np.eye(3)
+    v = np.cross(a, b)
+    s = float(np.linalg.norm(v))
+    kmat = np.array([[0.0, -v[2], v[1]], [v[2], 0.0, -v[0]], [-v[1], v[0], 0.0]])
+    return np.eye(3) + kmat + kmat @ kmat * ((1.0 - c) / (s * s + 1e-30))
+
+
+def matrix_to_location(R: np.ndarray, t: np.ndarray) -> cq.Location:
+    """Build a cq.Location from a 3×3 rotation matrix R and translation vector t (mm)."""
+    from OCP.gp import gp_Trsf
+    from OCP.TopLoc import TopLoc_Location
+    trsf = gp_Trsf()
+    trsf.SetValues(
+        float(R[0, 0]), float(R[0, 1]), float(R[0, 2]), float(t[0]),
+        float(R[1, 0]), float(R[1, 1]), float(R[1, 2]), float(t[1]),
+        float(R[2, 0]), float(R[2, 1]), float(R[2, 2]), float(t[2]),
+    )
+    return cq.Location(TopLoc_Location(trsf))
+
+
+def resolve_mate(
+    p: Dict[str, Any],
+    part_world: Dict[str, Tuple[np.ndarray, np.ndarray]],
+    part_anchors: Dict[str, Dict[str, Any]],
+    units_mm: float,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute world (R, t_mm) for part p using its first mate constraint.
+
+    The part's xform.r_deg is applied as a pre-rotation before mating,
+    letting you orient a part's "natural" axis to match the mount direction.
+    xform.t is ignored when mates are defined (position comes from the mate).
+    """
+    mates = p.get("mates") or []
+    xform = p.get("xform", {}) or {}
+    r_deg = xform.get("r_deg", [0, 0, 0])
+    my_name = p.get("name", "?")
+    my_anchors = p.get("anchors") or {}
+
+    R_pre, _ = xform_to_matrix([0, 0, 0], r_deg, units_mm)
+
+    mate = mates[0]
+    my_anchor_name = mate.get("my_anchor")
+    to_part_name = mate.get("to_part")
+    to_anchor_name = mate.get("to_anchor")
+
+    if my_anchor_name not in my_anchors:
+        raise RuntimeError(f"Part '{my_name}': anchor '{my_anchor_name}' not defined")
+    my_anch = my_anchors[my_anchor_name]
+    P_me = np.array(my_anch.get("t", [0, 0, 0]), dtype=float) * units_mm
+    AX_me = np.array(my_anch.get("axis", [0, 0, 1]), dtype=float)
+    AX_me /= np.linalg.norm(AX_me)
+
+    R_target, t_target = part_world[to_part_name]
+    to_anch = part_anchors[to_part_name].get(to_anchor_name)
+    if to_anch is None:
+        raise RuntimeError(f"Part '{to_part_name}': anchor '{to_anchor_name}' not defined")
+    P_to = np.array(to_anch.get("t", [0, 0, 0]), dtype=float) * units_mm
+    AX_to = np.array(to_anch.get("axis", [0, 0, 1]), dtype=float)
+    AX_to /= np.linalg.norm(AX_to)
+
+    P_to_world = R_target @ P_to + t_target
+    AX_to_world = R_target @ AX_to
+
+    P_me_pre = R_pre @ P_me
+    AX_me_pre = R_pre @ AX_me
+
+    R_align = rotation_matrix_from_vectors(AX_me_pre, AX_to_world)
+    R_world = R_align @ R_pre
+    t_world = P_to_world - R_align @ P_me_pre
+
+    return R_world, t_world
 
 
 def mesh_apply_transform(
@@ -305,11 +405,10 @@ def cq_load_part(
 
     if suffix in [".glb", ".gltf", ".obj", ".ply"]:
         mesh = load_mesh_any(part_file)
-        # apply scale/rot/trans directly to mesh so we don't need loc scale
-        mesh = mesh_apply_transform(mesh, t, r, s, units_mm_per_unit)
+        # Only bake scale; rotation+translation are applied via Location in build_assembly
+        mesh.apply_scale(float(s) * float(units_mm_per_unit))
         tmp_stl = build_dir / f"{part_file.stem}.converted.stl"
         shape = cq_shape_from_mesh(mesh, tmp_stl)
-        # already transformed into place; we'll add with identity loc
         return shape, None
 
     if suffix == ".scad":
@@ -359,6 +458,9 @@ def build_assembly(manifest: Dict[str, Any], manifest_path: Path) -> Tuple[cq.As
     if not isinstance(parts, list) or not parts:
         raise RuntimeError("Manifest must contain a non-empty 'parts' list")
 
+    # Validate and index parts
+    part_cfgs: Dict[str, Dict[str, Any]] = {}
+    part_order: List[str] = []
     for p in parts:
         if not isinstance(p, dict):
             raise RuntimeError("Each item in 'parts' must be an object/dict")
@@ -366,32 +468,53 @@ def build_assembly(manifest: Dict[str, Any], manifest_path: Path) -> Tuple[cq.As
         file_ = p.get("file")
         if not name or not file_:
             raise RuntimeError("Each part needs 'name' and 'file'")
-
         part_path = Path(file_)
         if not part_path.is_absolute():
             part_path = manifest_path.parent / part_path
         if not part_path.exists():
             raise FileNotFoundError(part_path)
+        cfg = dict(p)
+        cfg["_path"] = part_path
+        part_cfgs[name] = cfg
+        part_order.append(name)
 
-        xform = p.get("xform", {}) or {}
-        t = tuple(xform.get("t", [0, 0, 0]))
-        r = tuple(xform.get("r_deg", [0, 0, 0]))
-        s = float(xform.get("s", 1.0))
+    # Phase 1: Load all shapes
+    shapes: Dict[str, Tuple[Any, Optional[str]]] = {}
+    for name in part_order:
+        obj, kind = cq_load_part(part_cfgs[name]["_path"], part_cfgs[name], out_dir, units_mm)
+        shapes[name] = (obj, kind)
 
-        obj, kind = cq_load_part(part_path, p, out_dir, units_mm)
+    # Phase 2: Resolve world transforms (topological, supports mate dependencies)
+    part_anchors: Dict[str, Dict[str, Any]] = {
+        name: (part_cfgs[name].get("anchors") or {}) for name in part_order
+    }
+    part_world: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+    remaining = list(part_order)
+    for _ in range(len(part_order) + 1):
+        if not remaining:
+            break
+        deferred: List[str] = []
+        for name in remaining:
+            p = part_cfgs[name]
+            xform = p.get("xform", {}) or {}
+            t = tuple(xform.get("t", [0, 0, 0]))
+            r = tuple(xform.get("r_deg", [0, 0, 0]))
+            mates = p.get("mates") or []
+            if not mates:
+                part_world[name] = xform_to_matrix(t, r, units_mm)
+            elif all(m.get("to_part") in part_world for m in mates):
+                part_world[name] = resolve_mate(p, part_world, part_anchors, units_mm)
+            else:
+                deferred.append(name)
+        remaining = deferred
+    if remaining:
+        raise RuntimeError(f"Circular or unresolvable mate dependencies: {remaining}")
 
-        if kind == "assembly" and isinstance(obj, cq.Assembly):
-            # Nest assembly with placement
-            loc = xform_to_location(t, r, 1.0, units_mm_per_unit=units_mm)
-            assy.add(obj, name=name, loc=loc)
-            continue
-
-        # For GLB/mesh path, we already baked transform into mesh; detect that by suffix
-        baked = part_path.suffix.lower() in [".glb", ".gltf", ".obj", ".ply"]
-
-        loc = cq.Location() if baked else xform_to_location(t, r, 1.0, units_mm_per_unit=units_mm)
-        # Note: scale already applied to shape in loader (shape.scale), except baked meshes.
-        assy.add(obj, name=name, loc=loc)
+    # Phase 3: Add parts to assembly with resolved locations
+    for name in part_order:
+        obj, kind = shapes[name]
+        R, t_mm = part_world[name]
+        assy.add(obj, name=name, loc=matrix_to_location(R, t_mm))
 
     return assy, out_dir
 
