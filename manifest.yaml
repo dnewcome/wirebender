@@ -15,17 +15,17 @@ out_dir: "build"
 parts:
 
   # ── Motor ───────────────────────────────────────────────────────────────────
-  # Placed at origin. Shaft extends in +Z; motor body extends in −Z.
-  # TODO: rotate and translate to put the motor face (shaft side) at Z=0
-  #       and the shaft center at (X=0, Y=6mm) to align with the bender-head
-  #       clearance pocket and motor-flange bore.
+  # SCAD frame: body at Z=0–20, shaft protrudes in –Z from Z=0 (face), centered at X=5 Y=0.
+  # r_deg [180,0,0] flips so shaft points in +Z world:
+  #   body (Z=0–20 SCAD) → world Z=0 to –20 (motor body behind the face)
+  #   shaft (Z=–10–0 SCAD) → world Z=0 to +10 (shaft protrudes forward)
+  #   motor face remains at world Z=0.
   - name: motor
-    file: motor.glb
-    xform: {t: [0, 0, 0], r_deg: [0, 0, 0], s: 1000.0}
+    file: motor.scad
+    xform: {t: [0, 0, 0], r_deg: [180, 0, 0], s: 1.0}
     anchors:
-      # Front face of motor where shaft protrudes, at the shaft centerline.
-      # Adjust t to match actual shaft-center position in the GLB.
-      shaft_face: {t: [0, 6, 0], axis: [0, 0, 1]}
+      # Shaft centerline at the motor face (SCAD X=5, Y=0, Z=0).
+      shaft_face: {t: [5, 0, 0], axis: [0, 0, -1]}
 
   # ── Bender-head ─────────────────────────────────────────────────────────────
   # Mounts on motor face via M4 screws at X=±17.5mm.
