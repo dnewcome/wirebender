@@ -57,6 +57,32 @@ MUJOCO_GL=osmesa ../py/bin/python animate_bend.py staple   # -> preview/bending.
 ../py/bin/python animate_bend.py chair --view              # live playback (display)
 ```
 
+## Slicer: CAD path → G-code (`slicer.py`)
+
+The inverse of `bend_model.py` — a "slicer" for the bender. Give it the desired
+wire centerline (a points file, an SVG path, or a built-in example) and it walks
+the path, recovers the `feed` / `rotate` / `bend` program, and emits G-code for
+the three GRBL axes (X = feed mm, Y = tube rotation deg, Z = bend deg).
+
+```bash
+../py/bin/python slicer.py chair                       # slice a built-in example
+../py/bin/python slicer.py drawing.svg --tol 0.5 --check -o part.gcode
+../py/bin/python slicer.py path.json --springback 0.07
+```
+
+- **Setback + springback compensation:** feeds are shortened by `r·tan(α/2)` at
+  each bend so the rounded-corner part matches the design; bends are over-commanded
+  by `1/(1-springback)`.
+- **Fit error** is reported — the max deviation of the produced part from the
+  input (irreducible ≈ the corner-rounding sagitta `r(1-cos(α/2))`).
+- **`--check`** runs the collision checker on the sliced program.
+- Smooth curves are polygonised into straights + discrete bends (`--tol` controls
+  fineness). Imports: `.json`/`.csv` points, `.svg` paths (M/L/H/V/C/Q/Z).
+  DXF / STEP / 3D CAD import is future (see `PLAN.md`).
+
+The sliced program round-trips exactly through the forward model (verified), and
+can be previewed/animated/checked with the other tools before cutting wire.
+
 ## Collision checking (`interference.py`)
 
 Runs a program through the machine and checks the formed wire at every frame for:
@@ -116,6 +142,7 @@ MUJOCO_GL=osmesa ../py/bin/python render.py --gif     # animated demo GIF
 | `bend_model.py`     | Forward model: bending program → predicted 3D wire shape |
 | `animate_bend.py`   | Animate a program on the machine (wire forms out of the head) |
 | `interference.py`   | Collision check: wire vs self / table / machine bodies / head |
+| `slicer.py`         | CAD path (points / SVG) → machine program → G-code            |
 | `meshes/`           | Binary STL meshes (converted from `build/*.stl`)         |
 | `preview/`          | Rendered montage / GIF output                            |
 

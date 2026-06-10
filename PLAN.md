@@ -48,10 +48,13 @@ ordered; check them off as they land.
 
 ## G-code workflow
 
-- [ ] **G-code front end.** Thin parser mapping GRBL G-code (the three axes) →
-  `feed` / `rotate` / `bend` ops that `bend_model.py` / `animate_bend.py` /
-  `interference.py` already consume. Then real machine programs can be previewed,
-  animated, and collision-checked before cutting wire.
+- [x] **Slicer (CAD path → G-code).** `sim/slicer.py` is the inverse of the
+  forward model: a wire path (points / SVG / example) → `feed`/`rotate`/`bend`
+  program → G-code, with setback + springback compensation and fit-error
+  reporting. Inverse kinematics verified exact (0 mm sharp round-trip). Imports:
+  `.json`/`.csv` points, `.svg` paths.
+- [ ] **More path imports:** STL (extract the tube centerline), DXF (2D), STEP /
+  3D CAD edges/wires. Today curves are polygonised into discrete bends.
 - [ ] **Axis assignment + steps/mm** (mirror the README electronics checklist):
   Axis 1 feed (extruder), Axis 2 tube rotation, Axis 3 bend. Calibrate steps/mm
   per axis; map G-code units → physical motion in the parser.
