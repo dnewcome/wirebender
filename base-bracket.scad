@@ -52,7 +52,12 @@ FEEDER_HOLE = 5.3;
 FEEDER_HOLES = [[ -45, 14], [ 45, 14], [ -45, -14], [ 45, -14]];   // [dx along X, dz]
 
 // ── bending head (Ø43, mounts on spindle front flange) ──────────────
+// The head is a HORIZONTAL disk (motor shaft vertical) that the wire passes
+// through sideways, so it reaches ±HEAD_OD/2 ALONG the wire axis. The front
+// bearing must sit clear of that -> set the head this far in front of it.
 HEAD_OD = 43;  HEAD_H = 11;  HEAD_BOLT = 35;             // M4 at 35mm spacing
+HEAD_SETBACK = 35;                                       // head centre ahead of front bearing
+HEAD_X = FRONT_X - HEAD_SETBACK;
 
 // ─────────────────────────────────────────────────────────────────────
 
@@ -144,11 +149,11 @@ module bracket() {
 // ── ghosted bought / rotating parts (not printed) ───────────────────
 
 module ghost_rotating() {
-    // spindle along X through both bearings
+    // spindle along X from the head connection through both bearings
     color("0.7 0.7 0.75", 0.85)
-        translate([FRONT_X - 18, 0, AXIS_Z]) rotate([0, 90, 0]) difference() {
-            cylinder(d = BRG_BORE, h = REAR_X + 26);
-            translate([0,0,-1]) cylinder(d = SPINDLE_BORE, h = REAR_X + 28);
+        translate([HEAD_X, 0, AXIS_Z]) rotate([0, 90, 0]) difference() {
+            cylinder(d = BRG_BORE, h = REAR_X - HEAD_X + 12);
+            translate([0,0,-1]) cylinder(d = SPINDLE_BORE, h = REAR_X - HEAD_X + 14);
         }
     // 608 bearings
     for (x = [FRONT_X, REAR_X]) color("0.3 0.3 0.32", 0.6)
@@ -158,9 +163,13 @@ module ghost_rotating() {
     color("0.15 0.16 0.18", 0.9)
         translate([PULLEY_X - SP_PULLEY_W/2, 0, AXIS_Z]) rotate([0, 90, 0])
             cylinder(d = SP_PULLEY_OD, h = SP_PULLEY_W);
-    // bending head on front flange
-    color("0.9 0.55 0.15", 0.9)
-        translate([FRONT_X - 30, 0, AXIS_Z]) rotate([0, 90, 0]) cylinder(d = HEAD_OD, h = HEAD_H);
+    // bending head: HORIZONTAL disk (motor shaft vertical), wire through it along X
+    color("0.20 0.55 0.85", 0.9)
+        translate([HEAD_X, 0, AXIS_Z - HEAD_H/2]) cylinder(d = HEAD_OD, h = HEAD_H);
+    color("0.9 0.55 0.15", 0.95)                 // bending flange on top
+        translate([HEAD_X, 0, AXIS_Z + HEAD_H/2]) cylinder(d = 22, h = 2);
+    color("0.3 0.32 0.36", 0.9)                  // bending motor hanging below
+        translate([HEAD_X, 0, AXIS_Z - HEAD_H/2 - 20]) cylinder(d = 25, h = 20);
 }
 
 module ghost_stepper() {

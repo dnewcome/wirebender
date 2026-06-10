@@ -26,6 +26,7 @@
     <mesh name="motor" file="motor.stl" scale="0.001 0.001 0.001"/>
     <mesh name="bender-head" file="bender-head.stl" scale="0.001 0.001 0.001"/>
     <mesh name="motor-flange" file="motor-flange.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="bracket" file="bracket.stl" scale="0.001 0.001 0.001"/>
   </asset>
 
   <worldbody>
@@ -35,20 +36,10 @@
 
     <!-- ───────── static frame / decoration ───────── -->
     <body name="frame">
-      <!-- base plate -->
-      <geom type="box" pos="0.00635 0.1925 -0.041" size="0.04 0.0975 0.003" rgba="0.18 0.19 0.22 1"/>
-      <!-- U-bracket: foot + two bearing uprights -->
-      <geom type="box" pos="0.00635 0.129 -0.035" size="0.014 0.025 0.003" rgba="0.70 0.72 0.75 1"/>
-      <geom type="box" pos="0.00635 0.108 -0.01325" size="0.014 0.0025 0.02475" rgba="0.70 0.72 0.75 1"/>
-      <geom type="box" pos="0.00635 0.15 -0.01325" size="0.014 0.0025 0.02475" rgba="0.70 0.72 0.75 1"/>
-      <!-- tube-rotation motor (geared stepper, belt to pulley) -->
-      <geom type="box" pos="-0.02765 0.15 -0.0025" size="0.014 0.025 0.014" rgba="0.25 0.27 0.30 1"/>
-      <geom type="cylinder" fromto="-0.02765 0.15 -0.0025 -0.02765 0.156 -0.0025" size="0.009" rgba="0.15 0.16 0.18 1"/>
+      <!-- printed base/bracket (base-bracket.scad) -->
+      <geom type="mesh" mesh="bracket" pos="0.00635 0.035 -0.0445" quat="0.707107 0 0 0.707107" rgba="0.66 0.68 0.72 1"/>
       <!-- feeder body (1KGSSJ-B MIG wire feed) -->
       <geom type="box" pos="0.00635 0.226 0.0055" size="0.013 0.061 0.0425" rgba="0.18 0.19 0.22 1"/>
-      <!-- drive stepper (NEMA17) + shaft -->
-      <geom type="box" pos="-0.02765 0.215 0.0055" size="0.021 0.021 0.021" rgba="0.25 0.27 0.30 1"/>
-      <geom type="cylinder" fromto="-0.00665 0.215 0.0055 0.01535 0.215 0.0055" size="0.0025" rgba="0.62 0.64 0.68 1"/>
       <!-- wire inlet guide -->
       <geom type="cylinder" fromto="0.00635 0.287 0.0055 0.00635 0.305 0.0055" size="0.004" rgba="0.62 0.64 0.68 1"/>
     </body>
@@ -65,9 +56,9 @@
       <joint name="tube_rot" type="hinge" axis="0 1 0" pos="0.00635 0 0.0055"
              range="-90 90"/>
       <!-- feed tube -->
-      <geom type="cylinder" fromto="0.00635 0.012 0.0055 0.00635 0.158 0.0055" size="0.003175" rgba="0.62 0.64 0.68 1"/>
+      <geom type="cylinder" fromto="0.00635 -0.01 0.0055 0.00635 0.085 0.0055" size="0.004" rgba="0.62 0.64 0.68 1"/>
       <!-- drive pulley -->
-      <geom type="cylinder" fromto="0.00635 0.147 0.0055 0.00635 0.153 0.0055" size="0.016" rgba="0.15 0.16 0.18 1"/>
+      <geom type="cylinder" fromto="0.00635 0.043 0.0055 0.00635 0.051 0.0055" size="0.02" rgba="0.15 0.16 0.18 1"/>
       <!-- bending head (real CAD meshes) -->
       <geom type="mesh" mesh="motor" pos="0 0 0" quat="4.32978e-17 0.707107 0.707107 -4.32978e-17" rgba="0.30 0.32 0.36 1"/>
       <geom type="mesh" mesh="bender-head" pos="0 0 0" quat="1 0 0 0" rgba="0.20 0.55 0.85 1"/>

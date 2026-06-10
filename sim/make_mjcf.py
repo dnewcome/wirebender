@@ -159,6 +159,23 @@ def convert_to_binary_stl(src: Path, dst: Path) -> None:
     print(f"  mesh {src.name:24s} -> meshes/{dst.name}  ({len(mesh.vertices)} verts)")
 
 
+def render_scad_to_binary(scad_path: Path, dst: Path, defines=None) -> None:
+    """Render a .scad to STL via OpenSCAD, then re-export as binary in meshes/."""
+    import shutil
+    import subprocess
+    openscad = shutil.which("openscad")
+    if not openscad:
+        raise RuntimeError("openscad CLI not found")
+    tmp = dst.with_suffix(".raw.stl")
+    cmd = [openscad, "-o", str(tmp)]
+    for k, v in (defines or {}).items():
+        cmd += ["-D", f'{k}="{v}"' if isinstance(v, str) else f"{k}={v}"]
+    cmd += [str(scad_path)]
+    subprocess.run(cmd, check=True, capture_output=True)
+    convert_to_binary_stl(tmp, dst)
+    tmp.unlink(missing_ok=True)
+
+
 def mat_to_quat(R):
     m = R
     tr = m[0, 0] + m[1, 1] + m[2, 2]
@@ -234,12 +251,12 @@ C_PULLEY = "0.15 0.16 0.18 1"
 # (out through the bending head near Y=0). All [ROUGH] values are placeholders.
 WAX, WAZ = 6.35, 5.5            # wire axis (matches bender-head channel)
 
-# Feed tube (Axis 2 rotates about this axis)
-TUBE_Y0, TUBE_Y1 = 12, 158      # [ROUGH] tube extent (head end -> feeder end)
-TUBE_OD = 6.35                  # 0.25" feed tube
+# Feed tube / spindle (Axis 2 rotates about this axis) — spans the bracket bearings
+TUBE_Y0, TUBE_Y1 = -10, 85      # spindle extent (head end -> just past rear bearing)
+TUBE_OD = 8                     # 8mm spindle (608 bore)
 
-# Drive pulley on the tube (toothed-belt driven by the rotation motor)
-PULLEY_Y, PULLEY_R, PULLEY_W = 150, 16, 6   # [ROUGH]
+# Drive pulley on the spindle (GT2 60T ≈ Ø40), between the bracket bearings
+PULLEY_Y, PULLEY_R, PULLEY_W = 47, 20, 8
 
 # U-bracket: two uprights on a base foot; the tube turns in bearings here
 BRK_Y = [108, 150]              # [ROUGH] upright Y positions
@@ -274,6 +291,20 @@ FEED_RANGE_MM = (-120, 40)      # wire slide travel
 TUBE_RANGE = (-90, 90)          # feed-tube rotation
 BEND_RANGE = (0, 150)           # bend degree
 
+# ── Real printed bracket (base-bracket.scad) placed into the sim ────────────
+# Bracket frame: X = wire axis (head at -X), Z = up, wire axis at (y=0, z=50).
+# Map into the sim (wire axis along +Y at x=WAX, z=WAZ) by a +90° rotation about
+# Z (bracket +X -> sim +Y) plus a translation that lands the spindle axis on the
+# wire axis and the spindle front flange (bracket x=-19) at the head (sim Y=0).
+BRACKET_SCAD = ROOT / "base-bracket.scad"
+BRACKET_AXIS_Z = 50.0           # AXIS_Z in base-bracket.scad
+# Head-flange setback: the head is a horizontal Ø43 disk the wire passes through,
+# so it reaches ±21.5mm ALONG the wire axis — the front bearing must clear that.
+BRACKET_FLANGE_X = -35.0        # head centre this far in front of the front bearing
+BRACKET_QUAT = [0.70710678, 0.0, 0.0, 0.70710678]            # +90° about Z
+BRACKET_POS_MM = [WAX, -BRACKET_FLANGE_X, WAZ - BRACKET_AXIS_Z]
+C_BRACKET = "0.66 0.68 0.72 1"
+
 
 def ensure_meshes(convert=True):
     """Resolve world transforms and (optionally) build the binary head meshes.
@@ -299,6 +330,17 @@ def ensure_meshes(convert=True):
                     f"{src} missing — run `python3 assemble.py manifest.yaml` first")
             convert_to_binary_stl(src, dst)
         mesh_assets[name] = dst.name
+
+    # printed base/bracket (rendered from base-bracket.scad via OpenSCAD)
+    bracket_dst = MESH_OUT / "bracket.stl"
+    if convert:
+        try:
+            render_scad_to_binary(BRACKET_SCAD, bracket_dst, defines={"show": "bracket"})
+            mesh_assets["bracket"] = bracket_dst.name
+        except Exception as e:
+            print(f"  (skipping bracket mesh — {e})")
+    elif bracket_dst.exists():
+        mesh_assets["bracket"] = bracket_dst.name
     return world, cfgs, mesh_assets
 
 
@@ -319,33 +361,22 @@ def build_model_xml(world, cfgs, mesh_assets, extra_world="",
         f'    <mesh name="{n}" file="{f}" scale="{MM_TO_M} {MM_TO_M} {MM_TO_M}"/>'
         for n, f in mesh_assets.items())
 
-    # ── static decoration (frame, bracket, feeder, motors) ──
-    base_c = [WAX, sum(BASE_Y) / 2, BASE_TOP - BASE_THK / 2]
-    base_h = [BASE_X_HALF, (BASE_Y[1] - BASE_Y[0]) / 2, BASE_THK / 2]
-
+    # ── static frame ──
     static = []
-    static.append("      <!-- base plate -->")
-    static.append(box_geom(base_c, base_h, C_DARK))
-    static.append("      <!-- U-bracket: foot + two bearing uprights -->")
-    foot_c = [WAX, (BRK_Y[0] + BRK_Y[1]) / 2, BASE_TOP + 3]
-    static.append(box_geom(foot_c, [BRK_HALF[0], (BRK_Y[1]-BRK_Y[0])/2 + 4, 3], C_ALU))
-    for yu in BRK_Y:
-        up_c = [WAX, yu, (BASE_TOP + WAZ + 6) / 2]
-        up_h = [BRK_HALF[0], BRK_HALF[1], (WAZ + 6 - BASE_TOP) / 2]
-        static.append(box_geom(up_c, up_h, C_ALU))
-    static.append("      <!-- tube-rotation motor (geared stepper, belt to pulley) -->")
-    static.append(box_geom(ROT_MOTOR_C, ROT_MOTOR_HALF, C_MOTOR))
-    static.append(cyl_geom([ROT_MOTOR_C[0], PULLEY_Y, ROT_MOTOR_C[2]],
-                           [ROT_MOTOR_C[0], PULLEY_Y + ROT_PULLEY_R*0 + PULLEY_W, ROT_MOTOR_C[2]],
-                           ROT_PULLEY_R, C_PULLEY))
+    if "bracket" in mesh_assets:
+        static.append("      <!-- printed base/bracket (base-bracket.scad) -->")
+        static.append(
+            f'      <geom type="mesh" mesh="bracket" pos="{fmt(np.array(BRACKET_POS_MM)*MM_TO_M)}"'
+            f' quat="{fmt(BRACKET_QUAT)}" rgba="{C_BRACKET}"/>')
+    else:  # fallback rough frame if OpenSCAD/bracket mesh unavailable
+        base_c = [WAX, sum(BASE_Y) / 2, BASE_TOP - BASE_THK / 2]
+        static.append(box_geom(base_c, [BASE_X_HALF, (BASE_Y[1]-BASE_Y[0])/2, BASE_THK/2], C_DARK))
+        for yu in BRK_Y:
+            static.append(box_geom([WAX, yu, (BASE_TOP + WAZ + 6) / 2],
+                                   [BRK_HALF[0], BRK_HALF[1], (WAZ + 6 - BASE_TOP) / 2], C_ALU))
     static.append("      <!-- feeder body (1KGSSJ-B MIG wire feed) -->")
     feeder_c = [WAX, (FEEDER_Y[0] + FEEDER_Y[1]) / 2, WAZ]
     static.append(box_geom(feeder_c, FEEDER_HALF, C_DARK))
-    static.append("      <!-- drive stepper (NEMA17) + shaft -->")
-    static.append(box_geom(NEMA_C, NEMA_HALF, C_MOTOR))
-    static.append(cyl_geom([NEMA_C[0] + NEMA_HALF[0], NEMA_C[1], NEMA_C[2]],
-                           [NEMA_C[0] + NEMA_HALF[0] + NEMA_SHAFT_L, NEMA_C[1], NEMA_C[2]],
-                           2.5, C_STEEL))
     static.append("      <!-- wire inlet guide -->")
     static.append(cyl_geom([WAX, FEEDER_Y[1], WAZ], [WAX, FEEDER_Y[1] + 18, WAZ],
                            4, C_STEEL))
