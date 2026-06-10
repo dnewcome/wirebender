@@ -98,20 +98,34 @@ EXAMPLES = {
 # ── visualization (MuJoCo capsules, headless via osmesa) ────────────────────
 
 
-def to_mjcf(pts, radius_mm=0.8, rgba="0.80 0.80 0.85 1"):
+PALETTE = ["0.85 0.85 0.9 1", "0.95 0.6 0.25 1",
+           "0.35 0.75 0.95 1", "0.55 0.85 0.4 1"]
+
+
+def _seg_geoms(pts, radius_mm, rgba):
     mm = 0.001
-    segs = []
+    out = []
     for i in range(len(pts) - 1):
-        a = pts[i] * mm
-        b = pts[i + 1] * mm
+        a, b = pts[i] * mm, pts[i + 1] * mm
         if np.linalg.norm(b - a) < 1e-9:
             continue
-        segs.append(
+        out.append(
             f'      <geom type="capsule" fromto="{a[0]:.6g} {a[1]:.6g} {a[2]:.6g} '
-            f'{b[0]:.6g} {b[1]:.6g} {b[2]:.6g}" size="{radius_mm*mm:.6g}" rgba="{rgba}"/>'
-        )
-    c = pts.mean(axis=0) * mm
-    ext = float(np.max(pts.max(0) - pts.min(0))) * mm
+            f'{b[0]:.6g} {b[1]:.6g} {b[2]:.6g}" size="{radius_mm*mm:.6g}" rgba="{rgba}"/>')
+    return out
+
+
+def to_mjcf(items, radius_mm=0.8):
+    """items: a single (N,3) polyline, or a list of (N,3) polylines (mm)."""
+    if isinstance(items, np.ndarray):
+        items = [items]
+    mm = 0.001
+    geoms = []
+    for i, pts in enumerate(items):
+        geoms += _seg_geoms(pts, radius_mm, PALETTE[i % len(PALETTE)])
+    allpts = np.vstack(items)
+    c = allpts.mean(axis=0) * mm
+    ext = float(np.max(allpts.max(0) - allpts.min(0))) * mm
     return f"""<mujoco model="wireshape">
   <option gravity="0 0 0"/>
   <visual><global offwidth="1280" offheight="960"/>
@@ -120,15 +134,33 @@ def to_mjcf(pts, radius_mm=0.8, rgba="0.80 0.80 0.85 1"):
   <asset>
     <texture type="skybox" builtin="gradient" rgb1="0.25 0.3 0.4" rgb2="0.05 0.06 0.1"
              width="256" height="256"/>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.18 0.18 0.2" rgb2="0.26 0.26 0.3"
+             width="300" height="300"/>
+    <material name="grid" texture="grid" texrepeat="6 6" reflectance="0.1"/>
   </asset>
   <worldbody>
     <light pos="0.1 0.1 0.5" dir="-0.2 -0.2 -1"/>
+    <geom type="plane" size="2 2 0.05" pos="0 0 {(allpts.min(0)[2]*mm-0.005):.5g}" material="grid"/>
     <body>
-{chr(10).join(segs)}
+{chr(10).join(geoms)}
     </body>
   </worldbody>
 </mujoco>
 """
+
+
+def layout(names, springback=0.0, gap_mm=40):
+    """Simulate each example and lay them out in a row along Y, recentered."""
+    shapes = []
+    y = 0.0
+    for name in names:
+        pts = simulate(EXAMPLES[name], springback=springback)
+        pts = pts - pts.mean(axis=0)            # center on its own origin
+        span = pts.max(0)[1] - pts.min(0)[1]
+        pts = pts + np.array([0, y + span / 2, 0])
+        shapes.append(pts)
+        y += span + gap_mm
+    return shapes
 
 
 def render_shapes(names, springback=0.0, png=OUT / "shapes.png"):
@@ -154,6 +186,19 @@ def render_shapes(names, springback=0.0, png=OUT / "shapes.png"):
     print(f"wrote {png}")
 
 
+def view_shapes(names, springback=0.0):
+    """Open the predicted shape(s) in the interactive MuJoCo viewer (needs a display)."""
+    import mujoco
+    import mujoco.viewer
+
+    shapes = layout(names, springback=springback) if len(names) > 1 \
+        else [simulate(EXAMPLES[names[0]], springback=springback)]
+    model = mujoco.MjModel.from_xml_string(to_mjcf(shapes))
+    data = mujoco.MjData(model)
+    print(f"viewing: {', '.join(names)}  (orbit: drag · zoom: scroll · close window to exit)")
+    mujoco.viewer.launch(model, data)
+
+
 # ── CLI ─────────────────────────────────────────────────────────────────────
 
 
@@ -164,6 +209,8 @@ def main():
     ap.add_argument("--springback", type=float, default=0.0,
                     help="fraction a bend relaxes (0 = perfect; calibrate to material)")
     ap.add_argument("--png", action="store_true", help="render shape(s) to preview/")
+    ap.add_argument("--view", action="store_true",
+                    help="open in the interactive MuJoCo viewer (needs a display)")
     args = ap.parse_args()
 
     names = [args.example] if args.example else list(EXAMPLES)
@@ -174,6 +221,8 @@ def main():
               f"{'closed' if closed else 'open':6s}  end={np.round(pts[-1],1)}")
     if args.png:
         render_shapes(names, springback=args.springback)
+    if args.view:
+        view_shapes(names, springback=args.springback)
 
 
 if __name__ == "__main__":

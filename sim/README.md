@@ -42,6 +42,19 @@ Example programs live in `EXAMPLES` (square, staple, chair, coil). The square is
 sanity check — it closes exactly back at the origin. `springback` defaults to 0 and
 is a placeholder to calibrate against real 14/16 ga bends.
 
+## Animating the bend on the machine (`animate_bend.py`)
+
+Runs a program **on the machine**: the feed-tube rotation and bend flange move
+while the formed wire grows out of the bending head — in the correct machine frame
+(head fixed; the formed wire trails out and swings about the bending point as each
+bend forms, like wire pushed past a fixed mandrel). The final shape matches
+`bend_model.py` exactly (verified on the examples).
+
+```bash
+MUJOCO_GL=osmesa ../py/bin/python animate_bend.py staple   # -> preview/bending.gif
+../py/bin/python animate_bend.py chair --view              # live playback (display)
+```
+
 ## Setup
 
 Uses the same virtualenv as the CAD tools, plus `mujoco`:
@@ -77,6 +90,7 @@ MUJOCO_GL=osmesa ../py/bin/python render.py --gif     # animated demo GIF
 | `view.py`           | Interactive viewer / scripted demo (needs a display)     |
 | `render.py`         | Headless montage / GIF renderer                          |
 | `bend_model.py`     | Forward model: bending program → predicted 3D wire shape |
+| `animate_bend.py`   | Animate a program on the machine (wire forms out of the head) |
 | `meshes/`           | Binary STL meshes (converted from `build/*.stl`)         |
 | `preview/`          | Rendered montage / GIF output                            |
 
