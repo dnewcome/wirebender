@@ -374,12 +374,19 @@ def build_model_xml(world, cfgs, mesh_assets, extra_world="",
         for yu in BRK_Y:
             static.append(box_geom([WAX, yu, (BASE_TOP + WAZ + 6) / 2],
                                    [BRK_HALF[0], BRK_HALF[1], (WAZ + 6 - BASE_TOP) / 2], C_ALU))
-    static.append("      <!-- feeder body (1KGSSJ-B MIG wire feed) -->")
-    feeder_c = [WAX, (FEEDER_Y[0] + FEEDER_Y[1]) / 2, WAZ]
-    static.append(box_geom(feeder_c, FEEDER_HALF, C_DARK))
-    static.append("      <!-- wire inlet guide -->")
-    static.append(cyl_geom([WAX, FEEDER_Y[1], WAZ], [WAX, FEEDER_Y[1] + 18, WAZ],
-                           4, C_STEEL))
+    # feeder (1KGSSJ-B): flat on the bracket base, motor dropping through, knob up
+    # (matches base-bracket.scad; positions map bracket X -> sim Y via the bracket transform)
+    base_top = WAZ - BRACKET_AXIS_Z              # sim z of the bracket base top
+    f_cy = 150 - BRACKET_FLANGE_X                # feeder footprint centre (bracket FEEDER_X)
+    f_motor_cy = (150 + 104.5/2 - 32) - BRACKET_FLANGE_X   # motor offset to the wide end
+    static.append("      <!-- feeder body (1KGSSJ-B): flat on the base -->")
+    static.append(box_geom([WAX, f_cy, base_top + 15], [42.5, 61, 15], C_DARK))
+    static.append("      <!-- feeder motor dropping ~48mm through the base pocket -->")
+    static.append(cyl_geom([WAX, f_motor_cy, base_top], [WAX, f_motor_cy, base_top - 48],
+                           26.5, C_MOTOR))
+    static.append("      <!-- tension knob over the top -->")
+    static.append(cyl_geom([WAX, f_cy - 42, base_top + 30], [WAX, f_cy - 42, base_top + 44],
+                           11, "0.08 0.08 0.08 1"))
     static_xml = "\n".join(static)
 
     # ── tube body (Axis 2): feed tube + pulley + bending-head meshes ──
