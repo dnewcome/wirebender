@@ -51,8 +51,29 @@ def _rot(v, axis, ang):
     return v * c + np.cross(axis, v) * s + axis * np.dot(axis, v) * (1 - c)
 
 
-def simulate(program, springback=0.0):
-    """Run a program -> (N,3) polyline of points in mm (the wire centerline)."""
+# Bend radius: the wire wraps the mandrel (motor shaft) at a finite radius rather
+# than a sharp corner. ~mandrel radius + wire radius; tune/calibrate to the real
+# machine (see PLAN.md). 0 -> sharp corners (the original behaviour).
+BEND_RADIUS = 4.0
+
+
+def _arc_points(p0, b, axis, ang, r, max_step_deg=8.0):
+    """Points along a bend arc that starts at p0 (tangent to the heading), curves
+    toward unit `b`, radius r, total turn `ang` (rad) about `axis`. Excludes p0."""
+    if r <= 1e-9 or abs(ang) < 1e-9:
+        return []
+    center = p0 + b * r
+    n = max(1, int(abs(math.degrees(ang)) / max_step_deg))
+    return [center + _rot(p0 - center, axis, ang * k / n) for k in range(1, n + 1)]
+
+
+def simulate(program, springback=0.0, bend_radius=None):
+    """Run a program -> (N,3) polyline of points in mm (the wire centerline).
+
+    Each `bend` lays down an arc of radius `bend_radius` (defaults to BEND_RADIUS;
+    pass 0 for sharp corners). `feed` is the straight length between bends.
+    """
+    r = BEND_RADIUS if bend_radius is None else float(bend_radius)
     p = np.zeros(3)
     h = np.array([1.0, 0.0, 0.0])   # heading (wire lays out along +X to start)
     b = np.array([0.0, 1.0, 0.0])   # initial bends deflect toward +Y (XY plane)
@@ -66,6 +87,9 @@ def simulate(program, springback=0.0):
         elif op == "bend":
             a = np.cross(h, b)
             ang = math.radians(float(val) * (1.0 - springback))
+            for q in _arc_points(p, b, a, ang, r):
+                pts.append(q.copy())
+            p = pts[-1].copy() if r > 1e-9 and abs(ang) > 1e-9 else p
             h = _rot(h, a, ang)
             b = _rot(b, a, ang)
         else:

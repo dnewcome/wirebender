@@ -17,12 +17,13 @@ ordered; check them off as they land.
 
 ## Wire / bend modeling
 
-- [ ] **Bend radius (filleted corners).** Forward model + animation currently
-  make sharp corners. Real bends wrap the mandrel at a finite radius (~the
-  wire-to-shaft offset, ≈6 mm). Replace each sharp vertex with an arc of that
-  radius; this also fixes the geometry the head-interference check needs.
-- [ ] **Wire consumed in the bend arc.** A bend eats a little feed length
-  (arc vs chord); account for it so predicted lengths match reality.
+- [x] **Bend radius (filleted corners).** Bends now lay an arc of radius
+  `bend_model.BEND_RADIUS` (default 4 mm — the wire wrapping the mandrel) instead
+  of a sharp corner, in both the forward model and the machine-frame animation
+  (verified congruent). `bend_radius=0` recovers sharp corners. *Still to do:*
+  calibrate the radius to the real mandrel/shoe geometry.
+- [x] **Wire consumed in the bend arc.** Total wire length now includes the arc
+  length at each bend (Σ feed + Σ r·α), so `total_length` reflects real usage.
 - [ ] **Springback calibration.** `springback` is a placeholder (0). Bend test
   coupons of 14/16 ga, measure commanded vs realized angle, and fit a model
   (likely angle- and material-dependent). Feed that back into `bend_model.py`.
@@ -33,11 +34,13 @@ ordered; check them off as they land.
 
 ## Interference / collision
 
-- [ ] **Accurate head-clearance check.** Blocked on finalized bend kinematics
-  (mandrel position, bend plane, bend radius). The wire bends around the motor
-  shaft into the head's rear cutaway; our rough bend model puts it elsewhere, so
-  `interference.py` currently only flags wire *re-entering* the head from far off.
-  Once bend radius (above) is in, tighten `BEND_ZONE` and trust the mesh check.
+- [ ] **Accurate head-clearance check.** Bend radius is now modeled, but the
+  *bend point* `B` (and mandrel centre) is still placed roughly relative to the
+  real head mesh — the wire bends around the motor shaft into the head's rear
+  cutaway, which our `B = (6.35, 0, 5.5)` doesn't yet match. So `interference.py`
+  still only flags wire *re-entering* the head from far off (`BEND_ZONE = 32`).
+  To finish: place `B`/mandrel at the real shoe location, then shrink `BEND_ZONE`
+  and trust the mesh signed-distance check near the head.
 - [ ] **Reachability / envelope check.** Beyond collisions: does a program stay
   within axis travel limits (feed length, tube-rotation range)?
 - [ ] **Wire-vs-already-formed-part as the part grows** is handled; revisit once

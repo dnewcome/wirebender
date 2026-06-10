@@ -25,7 +25,7 @@ import numpy as np
 import mujoco
 
 import make_mjcf as mk
-from bend_model import EXAMPLES
+from bend_model import EXAMPLES, BEND_RADIUS
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "preview"
@@ -51,12 +51,18 @@ def _rot_about(p, center, axis, ang):
     return center + _rot(p - center, axis, ang)
 
 
-def frames_for(program, springback=0.0, feed_steps=6, bend_steps=8, rot_steps=8):
+def frames_for(program, springback=0.0, feed_steps=6, bend_steps=8, rot_steps=8,
+               bend_radius=None):
     """Step the program in the machine frame.
 
     Yields (tube_deg, bend_deg, W) per animation frame, where W is the formed-wire
     polyline (Nx3, mm, world) and tube_deg/bend_deg drive the machine joints.
+
+    A bend lays an arc of radius `bend_radius` (the wire wrapping the mandrel): the
+    already-formed wire pivots about the mandrel centre C = B + b·r while a fresh
+    arc is traced from B. r -> 0 recovers the sharp pivot-about-B behaviour.
     """
+    r = BEND_RADIUS if bend_radius is None else float(bend_radius)
     W = [B.copy()]      # W[0] is the live point at the bending head B
     tube = 0.0          # absolute feed-tube angle (deg)
     out = [(tube, 0.0, np.array(W))]
@@ -81,10 +87,20 @@ def frames_for(program, springback=0.0, feed_steps=6, bend_steps=8, rot_steps=8)
             a = math.radians(float(val) * (1.0 - springback))
             b = _rot(B0, YAXIS, math.radians(tube))
             axis = np.cross(E, b)               # bend axis (= rotated flange Z)
+            C = B + b * r                        # mandrel centre
             base = [p.copy() for p in W]
+
+            def build(ang):
+                if r > 1e-9 and abs(ang) > 1e-9:
+                    n = max(1, int(abs(math.degrees(ang)) / 8))
+                    arc = [_rot_about(B, C, axis, ang * k / n) for k in range(n + 1)]
+                else:
+                    arc = [B.copy()]
+                return arc + [_rot_about(p, C, axis, ang) for p in base[1:]]
+
             for s in range(1, bend_steps + 1):   # shoe pushes in: wire bends 0 -> a
                 ang = a * s / bend_steps
-                W = [_rot_about(p, B, axis, ang) for p in base]
+                W = build(ang)
                 out.append((tube, math.degrees(ang), np.array(W)))
             held = [p.copy() for p in W]
             for s in range(bend_steps - 1, -1, -1):  # shoe retracts; wire stays bent

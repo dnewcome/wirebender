@@ -38,9 +38,11 @@ MUJOCO_GL=osmesa ../py/bin/python bend_model.py --png  # render to preview/shape
 ../py/bin/python bend_model.py square --springback 0.07
 ```
 
-Example programs live in `EXAMPLES` (square, staple, chair, coil). The square is a
-sanity check — it closes exactly back at the origin. `springback` defaults to 0 and
-is a placeholder to calibrate against real 14/16 ga bends.
+Example programs live in `EXAMPLES` (square, staple, chair, coil). Bends are
+modeled as **arcs** of radius `BEND_RADIUS` (default 4 mm — the wire wrapping the
+mandrel; set `bend_radius=0` for sharp corners), so predicted lengths include the
+wire consumed in each arc. `springback` defaults to 0 and is a placeholder to
+calibrate against real 14/16 ga bends.
 
 ## Animating the bend on the machine (`animate_bend.py`)
 
