@@ -1,0 +1,5 @@
+py/
+__pycache__/
+*.pyc
+sim/preview/
+MUJOCO_LOG.TXT
