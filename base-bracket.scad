@@ -55,9 +55,13 @@ FEEDER_HOLE = 5.3;
 FEEDER_BOLT_SPAN = 104.5;               // trapezoid spacing along the major axis (X)
 FEEDER_BOLT_W1   = 47.3;                // wide-end hole spacing (across, Y) — motor end
 FEEDER_BOLT_W2   = 27.3;                // narrow-end hole spacing (Y) — output/head end
-FEEDER_MOTOR_HOLE = 60;                 // large cylindrical pocket for the motor dropping in
-FEEDER_MOTOR_X = FEEDER_X + 18;         // motor offset toward the wide (47.3) end
+FEEDER_MOTOR_BOSS = 53;                 // Ø53 motor-mount boss on the mating face (5mm proud)
+FEEDER_MOTOR_HOLE = 56;                 // pocket clears the boss + motor dropping through
+FEEDER_MOTOR_DROP = 48;                 // motor protrudes ~48mm below the mating face
+FEEDER_MOTOR_X = FEEDER_X + FEEDER_BOLT_SPAN/2 - 32;   // boss ~32mm inboard of the wide holes
 FEEDER_WIRE_Z = 16;                     // [VERIFY] feeder wire-path height above base top
+// NOTE: the motor needs ~FEEDER_MOTOR_DROP of clearance below the base — mount the
+// whole bracket on standoffs (or at a table edge) so the motor hangs free.
 // trapezoid corners on the base top, [x, y]: narrow (27.3) end toward the head (-X),
 // wide (47.3) + motor end toward +X. Mirrored about the major (X) axis.
 FEEDER_HOLES = [
@@ -196,9 +200,11 @@ module ghost_feeder() {
     // body flat on the base top (output/narrow end toward -X / the head)
     color("0.18 0.19 0.22", 0.45)
         translate([FEEDER_X, 0, FEEDER_T/2]) cube([FEEDER_L, FEEDER_W, FEEDER_T], center = true);
-    // motor/gearbox dropping through the base pocket (offset to the wide end)
+    // Ø53 boss (5mm proud) + motor/gearbox dropping ~48mm through the base pocket
+    color("0.40 0.42 0.46", 0.6)
+        translate([FEEDER_MOTOR_X, 0, -5]) cylinder(d = FEEDER_MOTOR_BOSS, h = 5);
     color("0.30 0.32 0.36", 0.6)
-        translate([FEEDER_MOTOR_X, 0, -BASE_THK - 44]) cylinder(d = 53, h = 48);
+        translate([FEEDER_MOTOR_X, 0, -FEEDER_MOTOR_DROP]) cylinder(d = 42, h = FEEDER_MOTOR_DROP - 5);
     // tension knob swinging up over the top
     color("0.08 0.08 0.08", 0.7)
         translate([FEEDER_X - 42, 0, FEEDER_T]) cylinder(d = 22, h = 14);
