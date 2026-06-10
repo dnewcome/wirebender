@@ -53,8 +53,34 @@ ordered; check them off as they land.
   program → G-code, with setback + springback compensation and fit-error
   reporting. Inverse kinematics verified exact (0 mm sharp round-trip). Imports:
   `.json`/`.csv` points, `.svg` paths.
-- [ ] **More path imports:** STL (extract the tube centerline), DXF (2D), STEP /
-  3D CAD edges/wires. Today curves are polygonised into discrete bends.
+- [ ] **More path imports:** DXF (2D), STEP / 3D CAD edges/wires. Today curves
+  are polygonised into discrete bends.
+
+### Slicing methods (model → wire path(s)) — pluggable framework
+
+Refactor the slicer so a 3D model can be turned into wire path(s) by one of
+several interchangeable **extraction methods**, all feeding the shared backend
+(simplify → `feed/rotate/bend` → fit error → interference → G-code). Each method
+returns one or more paths; the backend already verifies any path.
+
+- [x] **Framework refactor.** `slicer.py` has a method registry (`METHODS`),
+  `--method`/auto-detect, and multi-piece G-code (cut/reload `M0` between pieces).
+  Registered: `points`, `svg`, `example`, `centerline`.
+- [x] **Centerline** (tube/curve → 1D spine). Cross-section marching; round-trips
+  well on chair (fit 0.32 mm) and the U-shaped staple (102.9 vs 102.6 mm).
+  *Experimental* — tight/self-touching tubes may need a `--tol`/step tweak.
+- [ ] **Cross-section** (solid/surface → contours at intervals → wire loops, like
+  an FDM slicer). Good for rib/contour cages.
+- [ ] **Edge-following / wireframe** (feature edges → wire), pepakura-flavored.
+  Requires graph routing (Eulerian path / Chinese-postman) to traverse edges as
+  one strand, or split into pieces.
+- [ ] **Outline / silhouette** (project → outline) for 2D-ish parts.
+- [ ] **Hybrids** (e.g. cross-section ribs + connecting spine).
+
+**Cross-cutting constraint:** the bender makes a *single continuous strand*, so
+multi-path output means either separate wire pieces (cut/weld) or one routed path
+that doubles back. Methods must also respect manufacturability (reachability, min
+straight between bends, bend-radius limit) — reuse `interference.py` per path.
 - [ ] **Axis assignment + steps/mm** (mirror the README electronics checklist):
   Axis 1 feed (extruder), Axis 2 tube rotation, Axis 3 bend. Calibrate steps/mm
   per axis; map G-code units → physical motion in the parser.

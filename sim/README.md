@@ -57,31 +57,43 @@ MUJOCO_GL=osmesa ../py/bin/python animate_bend.py staple   # -> preview/bending.
 ../py/bin/python animate_bend.py chair --view              # live playback (display)
 ```
 
-## Slicer: CAD path → G-code (`slicer.py`)
+## Slicer: model → G-code (`slicer.py`)
 
-The inverse of `bend_model.py` — a "slicer" for the bender. Give it the desired
-wire centerline (a points file, an SVG path, or a built-in example) and it walks
-the path, recovers the `feed` / `rotate` / `bend` program, and emits G-code for
-the three GRBL axes (X = feed mm, Y = tube rotation deg, Z = bend deg).
+The inverse of `bend_model.py` — a "slicer" for the bender, built as a pluggable
+framework: an **extraction method** turns a source into one or more wire paths,
+then a shared backend recovers the `feed`/`rotate`/`bend` program and emits G-code
+for the three GRBL axes (X = feed mm, Y = tube rotation deg, Z = bend deg).
 
 ```bash
-../py/bin/python slicer.py chair                       # slice a built-in example
+../py/bin/python slicer.py --list-methods
+../py/bin/python slicer.py chair                        # built-in example
 ../py/bin/python slicer.py drawing.svg --tol 0.5 --check -o part.gcode
+../py/bin/python slicer.py wire.stl --method centerline  # tube mesh -> spine
 ../py/bin/python slicer.py path.json --springback 0.07
 ```
 
-- **Setback + springback compensation:** feeds are shortened by `r·tan(α/2)` at
-  each bend so the rounded-corner part matches the design; bends are over-commanded
-  by `1/(1-springback)`.
-- **Fit error** is reported — the max deviation of the produced part from the
-  input (irreducible ≈ the corner-rounding sagitta `r(1-cos(α/2))`).
-- **`--check`** runs the collision checker on the sliced program.
-- Smooth curves are polygonised into straights + discrete bends (`--tol` controls
-  fineness). Imports: `.json`/`.csv` points, `.svg` paths (M/L/H/V/C/Q/Z).
-  DXF / STEP / 3D CAD import is future (see `PLAN.md`).
+**Extraction methods** (`--method`, else auto-detected by extension):
 
-The sliced program round-trips exactly through the forward model (verified), and
-can be previewed/animated/checked with the other tools before cutting wire.
+| method | source | notes |
+|---|---|---|
+| `points` | `.json` / `.csv` | list of `[x,y(,z)]` |
+| `svg` | `.svg` | first `<path>` (M/L/H/V/C/Q/Z), 2D |
+| `example` | a name | a built-in `bend_model` example |
+| `centerline` | `.stl`/`.obj`/`.ply` | tube mesh → extracted spine *(experimental)* |
+
+More methods are planned — cross-section, edge-following/wireframe, hybrids — see
+`PLAN.md`. A method may return several paths (separate wire pieces); the G-code
+then separates them with a cut/reload pause (`M0`).
+
+- **Setback + springback compensation:** feeds shortened by `r·tan(α/2)` at each
+  bend so the rounded-corner part matches the design; bends over-commanded by
+  `1/(1-springback)`.
+- **Fit error** reported — max deviation of the produced part from the input
+  (irreducible ≈ the corner-rounding sagitta `r(1-cos(α/2))`).
+- **`--check`** runs the collision checker on each sliced path.
+
+Inverse kinematics round-trips exactly through the forward model (verified); a
+sliced program can be previewed/animated/checked before cutting wire.
 
 ## Collision checking (`interference.py`)
 
