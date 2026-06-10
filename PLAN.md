@@ -72,9 +72,13 @@ returns one or more paths; the backend already verifies any path.
 - [x] **Cross-section** (solid/surface → contours at intervals → wire loops, like
   an FDM slicer). `--method cross_section --axis --spacing`; each contour loop is a
   wire piece. Verified: sphere → ring cage (fit ~0.3 mm), box → rectangles.
-- [ ] **Edge-following / wireframe** (feature edges → wire), pepakura-flavored.
-  Requires graph routing (Eulerian path / Chinese-postman) to traverse edges as
-  one strand, or split into pieces.
+- [x] **Edge-following / wireframe** (feature edges → wire), pepakura-flavored.
+  `--method edge_follow --feature-angle`. Builds a graph of sharp edges and, by
+  default, decomposes each component into the fewest open trails covering every
+  edge once (separate wire pieces, no overlap). `--single` forces one strand via
+  Eulerian augmentation (retraces edges → large fit error, flags impracticality).
+  Verified: box → 4 pieces covering all 12 edges. *Future:* include boundary edges
+  of open meshes; smarter odd-vertex pairing (shortest-distance) to minimize pieces.
 - [ ] **Outline / silhouette** (project → outline) for 2D-ish parts.
 - [ ] **Hybrids** (e.g. cross-section ribs + connecting spine).
 

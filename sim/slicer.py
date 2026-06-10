@@ -209,6 +209,72 @@ def _axis_vec(axis):
     return _unit(np.asarray(axis, float))
 
 
+@method("edge_follow",
+        doc="feature edges -> wire via graph routing (--feature-angle, --single)")
+def _m_edge_follow(source, feature_angle=30.0, single=False, **kw):
+    """Trace the model's sharp feature edges as wire. A wireframe is a graph, and
+    the bender makes one strand, so by default we decompose each connected piece
+    into the fewest open trails that cover its edges once (separate wire pieces,
+    no overlap). --single instead forces one strand by Eulerian augmentation,
+    which retraces some edges (the wire doubles back / overlaps)."""
+    import trimesh
+    import networkx as nx
+    mesh = trimesh.load(str(source), force="mesh")
+    V = np.asarray(mesh.vertices, float)
+    ang = mesh.face_adjacency_angles
+    edges = mesh.face_adjacency_edges[ang > math.radians(feature_angle)]
+    G = nx.Graph()
+    for a, b in edges:
+        if a != b:
+            G.add_edge(int(a), int(b), weight=float(np.linalg.norm(V[a] - V[b])))
+    if G.number_of_edges() == 0:
+        raise SystemExit(f"no feature edges at {feature_angle}° — lower --feature-angle")
+
+    paths = []
+    for comp in nx.connected_components(G):
+        H = nx.MultiGraph(G.subgraph(comp))
+        if single:
+            HE = nx.eulerize(H) if not nx.is_eulerian(H) else H
+            verts = _circuit_vertices(list(nx.eulerian_circuit(HE)))
+            paths.append(V[verts])
+        else:
+            for trail in _edge_trails(H):
+                paths.append(V[trail])
+    return paths
+
+
+def _circuit_vertices(circuit):
+    return [circuit[0][0]] + [v for _, v in circuit]
+
+
+def _edge_trails(H):
+    """Decompose a connected MultiGraph into the fewest open trails covering every
+    edge once: pair odd-degree vertices with virtual edges -> Eulerian -> circuit,
+    then split the circuit at the virtual edges."""
+    import networkx as nx
+    H = nx.MultiGraph(H)
+    odd = [v for v in H if H.degree(v) % 2 == 1]
+    for i in range(0, len(odd) - 1, 2):
+        H.add_edge(odd[i], odd[i + 1], virtual=True)
+    circuit = list(nx.eulerian_circuit(H, keys=True))
+    marked = [(u, v, H.edges[u, v, k].get("virtual", False)) for u, v, k in circuit]
+    # rotate so a virtual edge (if any) is last, then split on virtuals
+    if any(m[2] for m in marked):
+        cut = max(i for i, m in enumerate(marked) if m[2])
+        marked = marked[cut + 1:] + marked[:cut + 1]
+    trails, cur = [], []
+    for u, v, virtual in marked:
+        if virtual:
+            if cur:
+                trails.append([cur[0][0]] + [e[1] for e in cur])
+            cur = []
+        else:
+            cur.append((u, v))
+    if cur:
+        trails.append([cur[0][0]] + [e[1] for e in cur])
+    return trails
+
+
 @method("cross_section",
         doc="solid mesh -> contour loops at intervals, FDM-slicer style "
             "(--axis, --spacing); explicit --method")
@@ -420,6 +486,10 @@ def main():
     ap.add_argument("--feed-rate", type=float, default=400)
     ap.add_argument("--axis", default="z", help="cross_section: slicing axis (x/y/z or vec)")
     ap.add_argument("--spacing", type=float, default=10.0, help="cross_section: slice spacing mm")
+    ap.add_argument("--feature-angle", type=float, default=30.0,
+                    help="edge_follow: min dihedral angle (deg) for a feature edge")
+    ap.add_argument("--single", action="store_true",
+                    help="edge_follow: one strand (retraces edges) instead of pieces")
     ap.add_argument("--check", action="store_true", help="run the collision checker")
     args = ap.parse_args()
 
@@ -431,7 +501,8 @@ def main():
     if not args.input:
         ap.error("input required (or --list-methods)")
 
-    name, paths = extract(args.input, args.method, axis=args.axis, spacing=args.spacing)
+    name, paths = extract(args.input, args.method, axis=args.axis, spacing=args.spacing,
+                          feature_angle=args.feature_angle, single=args.single)
     src_name = Path(args.input).stem if Path(args.input).exists() else args.input
     print(f"# method '{name}': {len(paths)} path(s) from {src_name}", flush=True)
 

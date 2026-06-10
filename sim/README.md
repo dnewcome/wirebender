@@ -81,12 +81,18 @@ for the three GRBL axes (X = feed mm, Y = tube rotation deg, Z = bend deg).
 | `example` | a name | a built-in `bend_model` example |
 | `centerline` | `.stl`/`.obj`/`.ply` | tube mesh → extracted spine *(experimental)* |
 | `cross_section` | mesh + `--method` | slice a solid into contour loops (`--axis`, `--spacing`) |
+| `edge_follow` | mesh + `--method` | feature edges → wire (`--feature-angle`, `--single`) |
 
-More methods are planned — edge-following/wireframe, hybrids — see `PLAN.md`. A
-method may return several paths (separate wire pieces); the G-code then separates
-them with a cut/reload pause (`M0`). `cross_section` and `centerline` both take
-meshes, so meshes auto-detect to `centerline`; pass `--method cross_section` to
-slice a solid.
+Hybrids are still planned — see `PLAN.md`. A method may return several paths
+(separate wire pieces); the G-code then separates them with a cut/reload pause
+(`M0`). `cross_section`/`edge_follow`/`centerline` all take meshes, so meshes
+auto-detect to `centerline`; pass `--method` to choose another.
+
+`edge_follow` traces the model's sharp edges as wire. A wireframe is a graph and
+the bender makes one strand, so by default it splits each connected piece into the
+fewest open trails that cover its edges once (separate pieces, no overlap).
+`--single` forces one strand by Eulerian augmentation, but that retraces edges
+(the wire would overlap / fold back 180°, which shows up as a large fit error).
 
 - **Setback + springback compensation:** feeds shortened by `r·tan(α/2)` at each
   bend so the rounded-corner part matches the design; bends over-commanded by
