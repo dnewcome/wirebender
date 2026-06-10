@@ -80,10 +80,13 @@ for the three GRBL axes (X = feed mm, Y = tube rotation deg, Z = bend deg).
 | `svg` | `.svg` | first `<path>` (M/L/H/V/C/Q/Z), 2D |
 | `example` | a name | a built-in `bend_model` example |
 | `centerline` | `.stl`/`.obj`/`.ply` | tube mesh → extracted spine *(experimental)* |
+| `cross_section` | mesh + `--method` | slice a solid into contour loops (`--axis`, `--spacing`) |
 
-More methods are planned — cross-section, edge-following/wireframe, hybrids — see
-`PLAN.md`. A method may return several paths (separate wire pieces); the G-code
-then separates them with a cut/reload pause (`M0`).
+More methods are planned — edge-following/wireframe, hybrids — see `PLAN.md`. A
+method may return several paths (separate wire pieces); the G-code then separates
+them with a cut/reload pause (`M0`). `cross_section` and `centerline` both take
+meshes, so meshes auto-detect to `centerline`; pass `--method cross_section` to
+slice a solid.
 
 - **Setback + springback compensation:** feeds shortened by `r·tan(α/2)` at each
   bend so the rounded-corner part matches the design; bends over-commanded by

@@ -69,8 +69,9 @@ returns one or more paths; the backend already verifies any path.
 - [x] **Centerline** (tube/curve → 1D spine). Cross-section marching; round-trips
   well on chair (fit 0.32 mm) and the U-shaped staple (102.9 vs 102.6 mm).
   *Experimental* — tight/self-touching tubes may need a `--tol`/step tweak.
-- [ ] **Cross-section** (solid/surface → contours at intervals → wire loops, like
-  an FDM slicer). Good for rib/contour cages.
+- [x] **Cross-section** (solid/surface → contours at intervals → wire loops, like
+  an FDM slicer). `--method cross_section --axis --spacing`; each contour loop is a
+  wire piece. Verified: sphere → ring cage (fit ~0.3 mm), box → rectangles.
 - [ ] **Edge-following / wireframe** (feature edges → wire), pepakura-flavored.
   Requires graph routing (Eulerian path / Chinese-postman) to traverse edges as
   one strand, or split into pieces.

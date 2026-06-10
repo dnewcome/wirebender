@@ -200,6 +200,39 @@ def _m_centerline(source, step=None, **kw):
     return [_extract_centerline(mesh, step=step)]
 
 
+def _axis_vec(axis):
+    if isinstance(axis, str):
+        axis = axis.strip().lower()
+        if axis in ("x", "y", "z"):
+            return np.eye(3)["xyz".index(axis)]
+        axis = [float(t) for t in re.split(r"[,\s]+", axis)]
+    return _unit(np.asarray(axis, float))
+
+
+@method("cross_section",
+        doc="solid mesh -> contour loops at intervals, FDM-slicer style "
+            "(--axis, --spacing); explicit --method")
+def _m_cross_section(source, axis="z", spacing=10.0, **kw):
+    """Slice a closed mesh on parallel planes; each contour loop is a wire piece."""
+    import trimesh
+    mesh = trimesh.load(str(source), force="mesh")
+    n = _axis_vec(axis)
+    proj = np.asarray(mesh.vertices, float) @ n
+    base = np.asarray(mesh.vertices, float).mean(0)
+    base_h = float(base @ n)
+    heights = np.arange(proj.min() + spacing / 2, proj.max(), spacing)
+    paths = []
+    for h in heights:
+        sec = mesh.section(plane_origin=base + n * (h - base_h), plane_normal=n)
+        if sec is None:
+            continue
+        for loop in sec.discrete:            # one or more closed contours
+            loop = np.asarray(loop, float)
+            if len(loop) >= 3:
+                paths.append(loop)
+    return paths
+
+
 def _extract_centerline(mesh, step=None):
     """Cross-section marching from a tube tip. Experimental — best on clean,
     non-self-touching tubes; U-shapes/tight bends may need a step/tol tweak."""
@@ -385,6 +418,8 @@ def main():
     ap.add_argument("--tol", type=float, default=0.4, help="simplify tolerance mm")
     ap.add_argument("--springback", type=float, default=0.0)
     ap.add_argument("--feed-rate", type=float, default=400)
+    ap.add_argument("--axis", default="z", help="cross_section: slicing axis (x/y/z or vec)")
+    ap.add_argument("--spacing", type=float, default=10.0, help="cross_section: slice spacing mm")
     ap.add_argument("--check", action="store_true", help="run the collision checker")
     args = ap.parse_args()
 
@@ -396,7 +431,7 @@ def main():
     if not args.input:
         ap.error("input required (or --list-methods)")
 
-    name, paths = extract(args.input, args.method)
+    name, paths = extract(args.input, args.method, axis=args.axis, spacing=args.spacing)
     src_name = Path(args.input).stem if Path(args.input).exists() else args.input
     print(f"# method '{name}': {len(paths)} path(s) from {src_name}", flush=True)
 
