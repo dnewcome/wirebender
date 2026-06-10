@@ -55,13 +55,35 @@ MUJOCO_GL=osmesa ../py/bin/python animate_bend.py staple   # -> preview/bending.
 ../py/bin/python animate_bend.py chair --view              # live playback (display)
 ```
 
+## Collision checking (`interference.py`)
+
+Runs a program through the machine and checks the formed wire at every frame for:
+
+- **self-collision** — the part crossing itself (exact; the most common failure)
+- **table / floor** — downward bends going below the table (exact)
+- **machine bodies** — feeder, NEMA17, rotation motor, bracket, base (exact)
+- **bending head** — against the *real* head mesh, but **approximate**: the wire
+  bends around the mandrel into the head's cutaway, and our rough bend kinematics
+  don't yet model that, so the head check only catches wire re-entering from far
+  off. Tightens up once bend radius is modeled (see `PLAN.md`).
+
+```bash
+../py/bin/python interference.py                 # check every program
+../py/bin/python interference.py spiral_flat     # check one (this one self-collides)
+MUJOCO_GL=osmesa ../py/bin/python interference.py spiral_flat --png  # render the worst frame
+```
+
+Needs `scipy` + `rtree` (mesh signed-distance). The sim itself runs collisions
+*off* (kinematic viz); this checks collisions offline against the wire geometry.
+
 ## Setup
 
-Uses the same virtualenv as the CAD tools, plus `mujoco`:
+Uses the same virtualenv as the CAD tools, plus `mujoco` (and `scipy`+`rtree`
+for the interference checker's mesh distance queries):
 
 ```bash
 python3 -m venv py
-./py/bin/pip install mujoco trimesh numpy pyyaml pillow
+./py/bin/pip install mujoco trimesh numpy pyyaml pillow scipy rtree
 ```
 
 ## Use
@@ -91,6 +113,7 @@ MUJOCO_GL=osmesa ../py/bin/python render.py --gif     # animated demo GIF
 | `render.py`         | Headless montage / GIF renderer                          |
 | `bend_model.py`     | Forward model: bending program → predicted 3D wire shape |
 | `animate_bend.py`   | Animate a program on the machine (wire forms out of the head) |
+| `interference.py`   | Collision check: wire vs self / table / machine bodies / head |
 | `meshes/`           | Binary STL meshes (converted from `build/*.stl`)         |
 | `preview/`          | Rendered montage / GIF output                            |
 
