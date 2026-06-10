@@ -41,15 +41,31 @@ TENSION_SLOT = 8;                                        // belt-tension travel
 
 // ── base plate ──────────────────────────────────────────────────────
 BASE_THK = 6;
-BASE_X0  = -14;  BASE_X1 = 250;                          // head end -> past feeder
-BASE_W   = 60;
+BASE_X0  = -14;  BASE_X1 = 219;                          // head end -> past feeder
+BASE_W   = 80;
 
-// ── feeder (1KGSSJ-B) mount ─────────────────────────────────────────
-FEEDER_X   = 150;                                        // feeder body centre X
-FEEDER_L   = 122;  FEEDER_H = 85;  FEEDER_T = 30;
+// ── feeder (1KGSSJ-B): mounts FLAT on TOP of the base ───────────────
+// The feeder motor/gearbox drops through a hole in the base; the body bolts to
+// the top with vertical screws; the tension knob swings up over the top. Bolt
+// pattern is an isosceles trapezoid (major axis = wire axis X), parallel hole
+// spacings 47.3 & 27.3 mm, 104.5 mm apart, mirrored about the major axis.
+FEEDER_X   = 150;                       // centre of the feeder footprint along X
+FEEDER_L   = 122;  FEEDER_W = 85;  FEEDER_T = 30;
 FEEDER_HOLE = 5.3;
-// TODO: confirm the real bolt pattern off the feeder; placeholder rectangle:
-FEEDER_HOLES = [[ -45, 14], [ 45, 14], [ -45, -14], [ 45, -14]];   // [dx along X, dz]
+FEEDER_BOLT_SPAN = 104.5;               // trapezoid spacing along the major axis (X)
+FEEDER_BOLT_W1   = 47.3;                // wide-end hole spacing (across, Y) — motor end
+FEEDER_BOLT_W2   = 27.3;                // narrow-end hole spacing (Y) — output/head end
+FEEDER_MOTOR_HOLE = 60;                 // large cylindrical pocket for the motor dropping in
+FEEDER_MOTOR_X = FEEDER_X + 18;         // motor offset toward the wide (47.3) end
+FEEDER_WIRE_Z = 16;                     // [VERIFY] feeder wire-path height above base top
+// trapezoid corners on the base top, [x, y]: narrow (27.3) end toward the head (-X),
+// wide (47.3) + motor end toward +X. Mirrored about the major (X) axis.
+FEEDER_HOLES = [
+    [FEEDER_X - FEEDER_BOLT_SPAN/2,  FEEDER_BOLT_W2/2],
+    [FEEDER_X - FEEDER_BOLT_SPAN/2, -FEEDER_BOLT_W2/2],
+    [FEEDER_X + FEEDER_BOLT_SPAN/2,  FEEDER_BOLT_W1/2],
+    [FEEDER_X + FEEDER_BOLT_SPAN/2, -FEEDER_BOLT_W1/2],
+];
 
 // ── bending head (Ø43, mounts on spindle front flange) ──────────────
 // The head is a HORIZONTAL disk (motor shaft vertical) that the wire passes
@@ -105,26 +121,20 @@ module motor_mount() {
     }
 }
 
-module feeder_plate() {
-    // upright plate at the rear carrying the feeder's bolt pattern, axis-aligned
-    plate_t = 6;
-    translate([FEEDER_X, 0, AXIS_Z]) rotate([0, 90, 0])
-    difference() {
-        translate([0, 0, -plate_t/2]) cube([FEEDER_H, UP_W + 20, plate_t], center = true);
-        cylinder(d = 9, h = plate_t + 2, center = true);   // wire pass-through
-        for (h = FEEDER_HOLES)
-            translate([h[1], h[0], 0]) cylinder(d = FEEDER_HOLE, h = plate_t + 2, center = true);
-    }
-}
-
 module base() {
     L = BASE_X1 - BASE_X0;
     difference() {
         translate([BASE_X0 + L/2, 0, -BASE_THK/2]) cube([L, BASE_W, BASE_THK], center = true);
-        // benchtop mounting holes
-        for (x = [BASE_X0 + 16, REAR_X + 24, FEEDER_X, BASE_X1 - 16])
+        // benchtop mounting holes (corners, clear of the feeder footprint)
+        for (x = [BASE_X0 + 12, REAR_X + 18, BASE_X1 - 12])
             for (y = [-BASE_W/2 + 8, BASE_W/2 - 8])
                 translate([x, y, -BASE_THK - 1]) cylinder(d = 5, h = BASE_THK + 2);
+        // feeder: large cylindrical pocket for the motor to drop through (offset
+        // to the wide/47.3 end), plus the trapezoidal vertical mounting holes
+        translate([FEEDER_MOTOR_X, 0, -BASE_THK - 1])
+            cylinder(d = FEEDER_MOTOR_HOLE, h = BASE_THK + 2);
+        for (h = FEEDER_HOLES)
+            translate([h[0], h[1], -BASE_THK - 1]) cylinder(d = FEEDER_HOLE, h = BASE_THK + 2);
     }
 }
 
@@ -142,7 +152,6 @@ module bracket() {
         translate([FRONT_X - UP_T/2 - WALL/2, 0, 0]) gusset(0);
         translate([REAR_X + UP_T/2 - WALL/2, 0, 0]) gusset(0);
         motor_mount();
-        feeder_plate();
     }
 }
 
@@ -184,9 +193,15 @@ module ghost_stepper() {
 }
 
 module ghost_feeder() {
-    color("0.18 0.19 0.22", 0.5)
-        translate([FEEDER_X + 8, 0, AXIS_Z]) rotate([0,90,0])
-            translate([0,0,0]) cube([FEEDER_H, FEEDER_T, FEEDER_L], center = true);
+    // body flat on the base top (output/narrow end toward -X / the head)
+    color("0.18 0.19 0.22", 0.45)
+        translate([FEEDER_X, 0, FEEDER_T/2]) cube([FEEDER_L, FEEDER_W, FEEDER_T], center = true);
+    // motor/gearbox dropping through the base pocket (offset to the wide end)
+    color("0.30 0.32 0.36", 0.6)
+        translate([FEEDER_MOTOR_X, 0, -BASE_THK - 44]) cylinder(d = 53, h = 48);
+    // tension knob swinging up over the top
+    color("0.08 0.08 0.08", 0.7)
+        translate([FEEDER_X - 42, 0, FEEDER_T]) cylinder(d = 22, h = 14);
 }
 
 bracket();
