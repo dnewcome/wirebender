@@ -23,8 +23,24 @@ All three machine axes, driven by position actuators:
   body (1KGSSJ-B), NEMA17 drive stepper, and the wire stock.
 
 Collisions are disabled (`contype/conaffinity = 0`) — this is a kinematic
-visualization driven by actuators, not a contact/dynamics sim. (Real wire-bending
-physics, where bends persist, is the next big piece — see the repo README.)
+visualization driven by actuators, not a contact/dynamics sim.
+
+## Predicting the wire shape (`bend_model.py`)
+
+A deterministic forward model: feed it a bending **program** (`feed` / `rotate` /
+`bend` ops — the three axes) and it walks a moving frame along the wire to compute
+the resulting **3D shape**, with a springback factor. This predicts the part the
+machine makes — i.e. your G-code previewer.
+
+```bash
+../py/bin/python bend_model.py                        # simulate the examples
+MUJOCO_GL=osmesa ../py/bin/python bend_model.py --png  # render to preview/shapes.png
+../py/bin/python bend_model.py square --springback 0.07
+```
+
+Example programs live in `EXAMPLES` (square, staple, chair, coil). The square is a
+sanity check — it closes exactly back at the origin. `springback` defaults to 0 and
+is a placeholder to calibrate against real 14/16 ga bends.
 
 ## Setup
 
@@ -60,6 +76,7 @@ MUJOCO_GL=osmesa ../py/bin/python render.py --gif     # animated demo GIF
 | `wirebender.xml`    | The MJCF model (generated — don't hand-edit)             |
 | `view.py`           | Interactive viewer / scripted demo (needs a display)     |
 | `render.py`         | Headless montage / GIF renderer                          |
+| `bend_model.py`     | Forward model: bending program → predicted 3D wire shape |
 | `meshes/`           | Binary STL meshes (converted from `build/*.stl`)         |
 | `preview/`          | Rendered montage / GIF output                            |
 
