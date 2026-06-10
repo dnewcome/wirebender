@@ -3,7 +3,7 @@
 render.py — Headless renders of the wire bender (no display needed).
 
     MUJOCO_GL=osmesa ../py/bin/python render.py            # 4-pose montage PNG
-    MUJOCO_GL=osmesa ../py/bin/python render.py --gif       # animated sweep GIF
+    MUJOCO_GL=osmesa ../py/bin/python render.py --gif       # animated demo GIF
 
 Outputs to sim/preview/. Use this when you don't have a GUI; otherwise view.py
 gives a live interactive window.
@@ -20,50 +20,39 @@ XML = HERE / "wirebender.xml"
 OUT = HERE / "preview"
 
 
-def model_bbox(model, data):
-    """Center + max extent of the machine (excludes the floor)."""
-    mujoco.mj_forward(model, data)
-    lo = np.full(3, 1e9)
-    hi = np.full(3, -1e9)
-    for g in range(model.ngeom):
-        if mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, g) == "floor":
-            continue
-        c = data.geom_xpos[g]
-        rb = model.geom_rbound[g]
-        lo = np.minimum(lo, c - rb)
-        hi = np.maximum(hi, c + rb)
-    return (lo + hi) / 2, float(np.max(hi - lo))
-
-
-def setq(model, data, name, deg):
+def setq(model, data, name, val):
     jid = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
-    data.qpos[model.jnt_qposadr[jid]] = np.deg2rad(deg)
+    data.qpos[model.jnt_qposadr[jid]] = val
 
 
-def camera(center, size, azimuth=130, elevation=-18):
+def pose(model, data, feed=0.0, tube_deg=0.0, bend_deg=0.0):
+    mujoco.mj_resetData(model, data)
+    setq(model, data, "feed", feed)
+    setq(model, data, "tube_rot", np.deg2rad(tube_deg))
+    setq(model, data, "bend", np.deg2rad(bend_deg))
+    mujoco.mj_forward(model, data)
+
+
+def camera(model, azimuth=120, elevation=-20, zoom=1.0):
     cam = mujoco.MjvCamera()
-    cam.lookat[:] = center
-    cam.distance = size * 2.4
+    mujoco.mjv_defaultFreeCamera(model, cam)   # frames using <statistic>
     cam.azimuth = azimuth
     cam.elevation = elevation
+    cam.distance *= zoom
     return cam
 
 
 def render_montage(model, data, renderer):
-    center, size = model_bbox(model, data)
-    poses = {
-        "home (0,0)": (0, 0),
-        "tube 90": (90, 0),
-        "bend 120": (0, 120),
-        "tube 45 / bend 90": (45, 90),
-    }
+    shots = [
+        ("home",            dict(feed=0.00, tube_deg=0,  bend_deg=0)),
+        ("feed + bend",     dict(feed=-0.03, tube_deg=0,  bend_deg=110)),
+        ("rotate 60",       dict(feed=-0.03, tube_deg=60, bend_deg=110)),
+        ("rotate -60 / bend", dict(feed=-0.06, tube_deg=-60, bend_deg=70)),
+    ]
     imgs = []
-    for tube, bend in poses.values():
-        mujoco.mj_resetData(model, data)
-        setq(model, data, "tube_rot", tube)
-        setq(model, data, "bend", bend)
-        mujoco.mj_forward(model, data)
-        renderer.update_scene(data, camera(center, size))
+    for _, kw in shots:
+        pose(model, data, **kw)
+        renderer.update_scene(data, camera(model))
         imgs.append(renderer.render())
     h, w, _ = imgs[0].shape
     grid = np.zeros((h * 2, w * 2, 3), np.uint8)
@@ -71,38 +60,46 @@ def render_montage(model, data, renderer):
         r, c = divmod(i, 2)
         grid[r * h:(r + 1) * h, c * w:(c + 1) * w] = px
     OUT.mkdir(exist_ok=True)
-    Image.fromarray(grid).save(OUT / "montage.png")
-    print(f"wrote {OUT/'montage.png'}")
+    Image.fromarray(grid).save(OUT / "machine.png")
+    print(f"wrote {OUT/'machine.png'}")
 
 
 def render_gif(model, data, renderer):
-    center, size = model_bbox(model, data)
-    cam = camera(center, size)
-    frames = []
-    # one revolution of the feed tube, with the head bending as it goes
-    n = 72
-    for i in range(n):
-        t = i / n
-        tube = 360 * t
-        bend = 110 * (0.5 - 0.5 * np.cos(2 * np.pi * 3 * t))  # 3 bends per rev
-        mujoco.mj_resetData(model, data)
-        setq(model, data, "tube_rot", tube)
-        setq(model, data, "bend", bend)
-        mujoco.mj_forward(model, data)
-        cam.azimuth = 130 + 20 * np.sin(2 * np.pi * t)
-        renderer.update_scene(data, cam)
-        frames.append(Image.fromarray(renderer.render()))
+    """A 'make a shape' demo: feed a bit, bend, unbend, rotate the plane, repeat."""
+    cam = camera(model, zoom=1.05)
+    keys = [  # (feed_mm, tube_deg, bend_deg)
+        (0,   0,   0),   (15, 0, 0),   (15, 0, 110), (15, 0, 0),
+        (30,  0,   0),   (30, 90, 0),  (30, 90, 110),(30, 90, 0),
+        (45,  90,  0),   (45, -90, 0), (45, -90, 90),(45, -90, 0),
+        (60,  0,   0),
+    ]
+    feeds = [-k[0] * 0.001 for k in keys]
+    tubes = [np.deg2rad(k[1]) for k in keys]
+    bends = [np.deg2rad(k[2]) for k in keys]
+    frames, per = [], 10
+    for i in range(len(keys) - 1):
+        for s in range(per):
+            t = s / per
+            pose(model, data,
+                 feed=feeds[i] + (feeds[i+1]-feeds[i])*t,
+                 tube_deg=0, bend_deg=0)
+            setq(model, data, "tube_rot", tubes[i] + (tubes[i+1]-tubes[i])*t)
+            setq(model, data, "bend", bends[i] + (bends[i+1]-bends[i])*t)
+            mujoco.mj_forward(model, data)
+            cam.azimuth = 120 + 25 * np.sin(2*np.pi*i/len(keys))
+            renderer.update_scene(data, cam)
+            frames.append(Image.fromarray(renderer.render()))
     OUT.mkdir(exist_ok=True)
-    path = OUT / "sweep.gif"
-    frames[0].save(path, save_all=True, append_images=frames[1:], duration=50, loop=0)
+    path = OUT / "machine.gif"
+    frames[0].save(path, save_all=True, append_images=frames[1:], duration=60, loop=0)
     print(f"wrote {path}")
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--gif", action="store_true", help="render an animated sweep GIF")
-    ap.add_argument("--width", type=int, default=720)
-    ap.add_argument("--height", type=int, default=540)
+    ap.add_argument("--gif", action="store_true", help="render an animated demo GIF")
+    ap.add_argument("--width", type=int, default=900)
+    ap.add_argument("--height", type=int, default=600)
     args = ap.parse_args()
 
     model = mujoco.MjModel.from_xml_path(str(XML))

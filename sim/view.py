@@ -28,7 +28,8 @@ def ctrl_id(model, name):
 
 
 def run_demo(model, data, viewer):
-    """A simple 'bend a few times in different directions' sequence."""
+    """A 'make a shape' sequence: feed wire, rotate the bend plane, bend, repeat."""
+    feed = ctrl_id(model, "feed")
     tube = ctrl_id(model, "tube_rot")
     bend = ctrl_id(model, "bend")
 
@@ -43,17 +44,18 @@ def run_demo(model, data, viewer):
             if not viewer.is_running():
                 return
 
-    # bend, unbend, rotate the feed tube, bend again — a few cycles
+    # feed wire, bend, unbend, rotate the plane, feed, bend again — like a real program
     sequence = [
-        (bend, 0, 110, 0.6),
-        (bend, 110, 0, 0.6),
-        (tube, 0, 90, 0.8),
-        (bend, 0, 110, 0.6),
-        (bend, 110, 0, 0.6),
-        (tube, 90, -90, 1.2),
-        (bend, 0, 110, 0.6),
-        (bend, 110, 0, 0.6),
-        (tube, -90, 0, 0.8),
+        (feed, 0.0, -0.02, 0.6),
+        (bend, 0, 110, 0.5), (bend, 110, 0, 0.4),
+        (feed, -0.02, -0.04, 0.6),
+        (tube, 0, 90, 0.7),
+        (bend, 0, 110, 0.5), (bend, 110, 0, 0.4),
+        (feed, -0.04, -0.06, 0.6),
+        (tube, 90, -90, 1.1),
+        (bend, 0, 90, 0.5), (bend, 90, 0, 0.4),
+        (tube, -90, 0, 0.7),
+        (feed, -0.06, 0.0, 0.8),
     ]
     while viewer.is_running():
         for act, a, b, secs in sequence:
@@ -72,9 +74,9 @@ def main():
 
     if args.demo:
         with mujoco.viewer.launch_passive(model, data) as viewer:
-            viewer.cam.azimuth = 130
-            viewer.cam.elevation = -18
-            viewer.cam.distance = 0.17
+            mujoco.mjv_defaultFreeCamera(model, viewer.cam)  # frame the whole machine
+            viewer.cam.azimuth = 120
+            viewer.cam.elevation = -20
             run_demo(model, data, viewer)
     else:
         # Managed viewer: gives the Control panel with actuator sliders.

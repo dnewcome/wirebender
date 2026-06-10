@@ -1,25 +1,30 @@
 # MuJoCo simulation
 
-A rigid-body MuJoCo model of the wire bender's bending head, generated from the
-same `manifest.yaml` the CAD assembly uses, so the sim tracks the design.
+A rigid-body MuJoCo model of the **whole** wire bender. The bending head uses the
+real CAD meshes (placed with the same transforms as `assemble.py`, so it tracks
+the design); the rest of the machine is **roughed in with primitives** at nominal
+dimensions, to be refined as parts are measured/modeled.
 
-![montage](preview/montage.png)
+![montage](preview/machine.png)
 
 ## What's modeled
 
-Two actuated axes (the mechanism's moving parts), reusing the existing meshes:
+All three machine axes, driven by position actuators:
 
-| Joint      | Type  | Axis                         | Machine function                |
-|------------|-------|------------------------------|---------------------------------|
-| `tube_rot` | hinge | wire/feed-tube axis (Y)      | Axis 2 — bend **direction**     |
-| `bend`     | hinge | motor shaft (Z)              | Axis 3 — bend **degree**        |
+| Joint      | Type  | Axis                    | Machine function              |
+|------------|-------|-------------------------|-------------------------------|
+| `feed`     | slide | wire/feed-tube axis (Y) | Axis 1 — wire **feed**        |
+| `tube_rot` | hinge | wire/feed-tube axis (Y) | Axis 2 — bend **direction**   |
+| `bend`     | hinge | motor shaft (Z)         | Axis 3 — bend **degree**      |
 
-The motor + bender-head mount rotate together with the feed tube; the bending
-flange (`motor-flange`) rotates on the motor shaft inside that.
+- **Real meshes:** the bending head — `motor`, `bender-head`, `motor-flange`.
+- **Rough primitives** (in the `LAYOUT` block of `make_mjcf.py`, tagged `[ROUGH]`):
+  base plate, U-bracket, feed tube, drive pulley, tube-rotation motor, feeder
+  body (1KGSSJ-B), NEMA17 drive stepper, and the wire stock.
 
-**Axis 1 (wire feed)** isn't modeled yet — it only translates wire, and there's
-no wire body. The XML has a commented `wire`/`feed` slide-joint stub ready to
-drive one when added.
+Collisions are disabled (`contype/conaffinity = 0`) — this is a kinematic
+visualization driven by actuators, not a contact/dynamics sim. (Real wire-bending
+physics, where bends persist, is the next big piece — see the repo README.)
 
 ## Setup
 
@@ -38,13 +43,13 @@ cd sim
 # (Re)generate wirebender.xml + binary meshes from manifest.yaml
 ../py/bin/python make_mjcf.py
 
-# Interactive viewer — drag the tube_rot / bend sliders in the Control panel
+# Interactive viewer — drag the feed / tube_rot / bend sliders in the Control panel
 ../py/bin/python view.py
-../py/bin/python view.py --demo          # scripted feed/rotate/bend sequence
+../py/bin/python view.py --demo          # scripted "make a shape" sequence
 
 # Headless renders (no display needed)
 MUJOCO_GL=osmesa ../py/bin/python render.py          # 4-pose montage PNG
-MUJOCO_GL=osmesa ../py/bin/python render.py --gif     # animated sweep GIF
+MUJOCO_GL=osmesa ../py/bin/python render.py --gif     # animated demo GIF
 ```
 
 ## Files
@@ -66,4 +71,5 @@ MUJOCO_GL=osmesa ../py/bin/python render.py --gif     # animated sweep GIF
   `python3 assemble.py manifest.yaml` from the repo root first.
 - The bending flange is nearly 4-fold symmetric, so the `bend` axis is easier to
   see in the live viewer than in a single still.
-```
+- `[ROUGH]` dimensions in `make_mjcf.py` are placeholders — refine them (or swap
+  primitives for real meshes) as the feeder/bracket/tube parts get measured.
