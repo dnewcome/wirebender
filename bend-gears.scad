@@ -12,6 +12,8 @@
 use <MCAD/involute_gears.scad>
 $fn = 64;
 
+show = "pair";        // "pair" | "output_gear" | "pinion"
+
 // ── gear params ─────────────────────────────────────────────────────
 MODULE_  = 1.0;
 PINION_T = 14;
@@ -58,12 +60,18 @@ module mandrel() {
     translate([0, 0, THK]) cylinder(d = MANDREL_D, h = MANDREL_H);
 }
 
-// ── meshed layout (output gear at the centre distance) ──────────────
+// ── output / render ─────────────────────────────────────────────────
 ratio = GEAR_T / PINION_T;
-color([0.85, 0.55, 0.2]) pinion();
-translate([CD, 0, 0]) {
-    color([0.30, 0.55, 0.85]) rotate([0, 0, 180/GEAR_T]) output_gear();   // phase for a clean mesh
-    color([0.62, 0.64, 0.68]) mandrel();                                   // metal insert
+if (show == "output_gear") {
+    color([0.30, 0.55, 0.85]) output_gear();              // at origin (for the sim bend body)
+} else if (show == "pinion") {
+    color([0.85, 0.55, 0.2]) pinion();
+} else {                                                   // meshed pair
+    color([0.85, 0.55, 0.2]) pinion();
+    translate([CD, 0, 0]) {
+        color([0.30, 0.55, 0.85]) rotate([0, 0, 180/GEAR_T]) output_gear();
+        color([0.62, 0.64, 0.68]) mandrel();
+    }
 }
 
 echo(str("ratio = ", ratio, ":1   centre distance = ", CD, " mm   ",

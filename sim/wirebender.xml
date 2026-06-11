@@ -27,6 +27,8 @@
     <mesh name="bender-head" file="bender-head.stl" scale="0.001 0.001 0.001"/>
     <mesh name="motor-flange" file="motor-flange.stl" scale="0.001 0.001 0.001"/>
     <mesh name="bracket" file="bracket.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="head" file="head.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="bend_gear" file="bend_gear.stl" scale="0.001 0.001 0.001"/>
   </asset>
 
   <worldbody>
@@ -61,15 +63,14 @@
       <geom type="cylinder" fromto="0.00635 -0.01 0.0055 0.00635 0.085 0.0055" size="0.004" rgba="0.62 0.64 0.68 1"/>
       <!-- drive pulley -->
       <geom type="cylinder" fromto="0.00635 0.043 0.0055 0.00635 0.051 0.0055" size="0.02" rgba="0.15 0.16 0.18 1"/>
-      <!-- bending head (real CAD meshes) -->
-      <geom type="mesh" mesh="motor" pos="0 0 0" quat="4.32978e-17 0.707107 0.707107 -4.32978e-17" rgba="0.30 0.32 0.36 1"/>
-      <geom type="mesh" mesh="bender-head" pos="0 0 0" quat="1 0 0 0" rgba="0.20 0.55 0.85 1"/>
+      <!-- bending head housing (head.scad) -->
+      <geom type="mesh" mesh="head" pos="0.00635 0 -0.0075" quat="0 0 0 1" rgba="0.20 0.55 0.85 1"/>
 
       <!-- ───────── Axis 3: bend head ───────── -->
       <body name="bend_flange" pos="0 0 0">
-        <joint name="bend" type="hinge" axis="0 0 1" pos="0 0.006 0.014"
+        <joint name="bend" type="hinge" axis="0 0 1" pos="0.00355 0 0.0055"
                range="0 150"/>
-        <geom type="mesh" mesh="motor-flange" pos="0 0.006 0.014" quat="0 1 0 0" rgba="0.90 0.55 0.15 1"/>
+        <geom type="mesh" mesh="bend_gear" pos="0.00355 0 0.0015" quat="0 0 0 1" rgba="0.90 0.55 0.15 1"/>
       </body>
     </body>
   </worldbody>

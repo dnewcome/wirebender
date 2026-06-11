@@ -212,6 +212,14 @@ def mesh_geom(name, R, t_mm, rgba, indent=6):
             f'quat="{fmt(quat)}" rgba="{rgba}"/>')
 
 
+def mesh_geom_pq(name, pos_mm, quat, rgba, indent=6):
+    """Mesh geom with explicit position (mm) and quaternion."""
+    pos = np.asarray(pos_mm, float) * MM_TO_M
+    sp = " " * indent
+    return (f'{sp}<geom type="mesh" mesh="{name}" pos="{fmt(pos)}" '
+            f'quat="{fmt(quat)}" rgba="{rgba}"/>')
+
+
 def box_geom(center_mm, half_mm, rgba, indent=6, quat=None):
     pos = np.asarray(center_mm, float) * MM_TO_M
     size = np.asarray(half_mm, float) * MM_TO_M
@@ -305,6 +313,23 @@ BRACKET_QUAT = [0.70710678, 0.0, 0.0, 0.70710678]            # +90° about Z
 BRACKET_POS_MM = [WAX, -BRACKET_FLANGE_X, WAZ - BRACKET_AXIS_Z]
 C_BRACKET = "0.66 0.68 0.72 1"
 
+# ── New bending head (head.scad housing + bend-gears.scad output gear) ───────
+# head.scad frame: Z = bend axis (up), Y = wire axis (spindle on -Y). Place into
+# the sim by a 180° rotation about Z (head +Y -> sim +Y, bend axis -> sim Z) plus
+# a translation that puts the head's wire line on the sim wire axis (x=WAX, z=WAZ).
+HEAD_SCAD = ROOT / "head.scad"
+GEARS_SCAD = ROOT / "bend-gears.scad"
+HEAD_WIRE_Z = 13.0              # WIRE_Z in head.scad (GEAR_Z + GEAR_TH/2)
+HEAD_GEAR_Z = 9.0              # GEAR_Z in head.scad
+HEAD_OFFSET = 2.8             # mandrel offset from the wire axis (head OFFSET)
+HEAD_QUAT = [0.0, 0.0, 0.0, 1.0]                  # 180° about Z
+HEAD_POS_MM = [WAX, 0.0, WAZ - HEAD_WIRE_Z]
+# bend axis (mandrel) after placement, and the output-gear mesh position
+NEW_BEND_PIVOT = [WAX - HEAD_OFFSET, 0.0, WAZ]
+HEAD_GEAR_POS_MM = [WAX - HEAD_OFFSET, 0.0, HEAD_GEAR_Z + (WAZ - HEAD_WIRE_Z)]
+C_HEAD = "0.20 0.55 0.85 1"
+C_GEAR = "0.90 0.55 0.15 1"
+
 
 def ensure_meshes(convert=True):
     """Resolve world transforms and (optionally) build the binary head meshes.
@@ -331,16 +356,22 @@ def ensure_meshes(convert=True):
             convert_to_binary_stl(src, dst)
         mesh_assets[name] = dst.name
 
-    # printed base/bracket (rendered from base-bracket.scad via OpenSCAD)
-    bracket_dst = MESH_OUT / "bracket.stl"
-    if convert:
-        try:
-            render_scad_to_binary(BRACKET_SCAD, bracket_dst, defines={"show": "bracket"})
-            mesh_assets["bracket"] = bracket_dst.name
-        except Exception as e:
-            print(f"  (skipping bracket mesh — {e})")
-    elif bracket_dst.exists():
-        mesh_assets["bracket"] = bracket_dst.name
+    # parts rendered from .scad via OpenSCAD: bracket, new head housing, output gear
+    scad_parts = [
+        ("bracket", BRACKET_SCAD, {"show": "bracket"}),
+        ("head",    HEAD_SCAD,    {"show": "head"}),
+        ("bend_gear", GEARS_SCAD, {"show": "output_gear"}),
+    ]
+    for name, scad, defines in scad_parts:
+        dst = MESH_OUT / f"{name}.stl"
+        if convert:
+            try:
+                render_scad_to_binary(scad, dst, defines=defines)
+                mesh_assets[name] = dst.name
+            except Exception as e:
+                print(f"  (skipping {name} mesh — {e})")
+        elif dst.exists():
+            mesh_assets[name] = dst.name
     return world, cfgs, mesh_assets
 
 
@@ -396,13 +427,16 @@ def build_model_xml(world, cfgs, mesh_assets, extra_world="",
     tube.append("      <!-- drive pulley -->")
     tube.append(cyl_geom([WAX, PULLEY_Y - PULLEY_W/2, WAZ],
                          [WAX, PULLEY_Y + PULLEY_W/2, WAZ], PULLEY_R, C_PULLEY))
-    tube.append("      <!-- bending head (real CAD meshes) -->")
-    tube.append(head_meshes(TUBE_PARTS, 6))
+    tube.append("      <!-- bending head housing (head.scad) -->")
+    if "head" in mesh_assets:
+        tube.append(mesh_geom_pq("head", HEAD_POS_MM, HEAD_QUAT, C_HEAD, 6))
+    else:
+        tube.append(head_meshes(TUBE_PARTS, 6))      # fallback to old head meshes
     tube_xml = "\n".join(tube)
 
     tube_pivot = [WAX, 0, WAZ]
-    bend_pivot = world["motor-flange"][1].copy()  # flange center; bend axis = world Z
-    bend_pivot[1] = 6.0
+    bend_pivot = NEW_BEND_PIVOT if "head" in mesh_assets else \
+        [world["motor-flange"][1][0], 6.0, world["motor-flange"][1][2]]
 
     wire_body = f"""
     <!-- ───────── Axis 1: wire feed (slide along Y) ───────── -->
@@ -470,7 +504,7 @@ def build_model_xml(world, cfgs, mesh_assets, extra_world="",
       <body name="bend_flange" pos="0 0 0">
         <joint name="bend" type="hinge" axis="0 0 1" pos="{fmt(np.array(bend_pivot)*MM_TO_M)}"
                range="{BEND_RANGE[0]} {BEND_RANGE[1]}"/>
-{head_meshes(FLANGE_PARTS, 8)}
+{mesh_geom_pq("bend_gear", HEAD_GEAR_POS_MM, HEAD_QUAT, C_GEAR, 8) if "bend_gear" in mesh_assets else head_meshes(FLANGE_PARTS, 8)}
       </body>
     </body>
   </worldbody>
