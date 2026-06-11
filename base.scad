@@ -34,6 +34,8 @@ FEEDER_X = 145;  FEEDER_L = 122;
 FEEDER_BOLT_SPAN = 104.5;  FEEDER_BOLT_W1 = 47.3;  FEEDER_BOLT_W2 = 27.3;
 FEEDER_HOLE = 5.3;  FEEDER_MOTOR_HOLE = 56;
 FEEDER_MOTOR_X = FEEDER_X + FEEDER_BOLT_SPAN/2 - 32;
+FEEDER_NOSE_HOLE = 22;                                // clearance for the narrow-end boss (~Ø20, ~5mm proud)
+FEEDER_NOSE_X = FEEDER_X - FEEDER_BOLT_SPAN/2 - 6;     // just forward of the narrow bolt holes (toward the nose)
 FEEDER_HOLES = [
     [FEEDER_X - FEEDER_BOLT_SPAN/2,  FEEDER_BOLT_W2/2],   // narrow end toward head
     [FEEDER_X - FEEDER_BOLT_SPAN/2, -FEEDER_BOLT_W2/2],
@@ -80,8 +82,9 @@ module base_plate() {
     L = BASE_X1 - BASE_X0;
     difference() {
         translate([BASE_X0 + L/2, 0, -BASE_TH/2]) cube([L, BASE_W, BASE_TH], center = true);
-        // feeder motor pocket + trapezoid bolt holes
+        // feeder motor pocket + narrow-end boss pocket + trapezoid bolt holes
         translate([FEEDER_MOTOR_X, 0, -BASE_TH - 1]) cylinder(d = FEEDER_MOTOR_HOLE, h = BASE_TH + 2);
+        translate([FEEDER_NOSE_X, 0, -BASE_TH - 1]) cylinder(d = FEEDER_NOSE_HOLE, h = BASE_TH + 2);
         for (h = FEEDER_HOLES) translate([h[0], h[1], -BASE_TH - 1]) cylinder(d = FEEDER_HOLE, h = BASE_TH + 2);
         // benchtop mounting holes — front half only (the feeder + its bolts hold the
         // rear); kept clear of the feeder footprint so its bolt pattern reads clean
