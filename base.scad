@@ -83,9 +83,10 @@ module base_plate() {
         // feeder motor pocket + trapezoid bolt holes
         translate([FEEDER_MOTOR_X, 0, -BASE_TH - 1]) cylinder(d = FEEDER_MOTOR_HOLE, h = BASE_TH + 2);
         for (h = FEEDER_HOLES) translate([h[0], h[1], -BASE_TH - 1]) cylinder(d = FEEDER_HOLE, h = BASE_TH + 2);
-        // benchtop mounting holes (clear of the feeder footprint)
-        for (x = [BASE_X0 + 12, RB_X + 16, BASE_X1 - 12])
-            for (y = [-BASE_W/2 + 8, BASE_W/2 - 8])
+        // benchtop mounting holes — front half only (the feeder + its bolts hold the
+        // rear); kept clear of the feeder footprint so its bolt pattern reads clean
+        for (x = [BASE_X0 + 12, RB_X - 4])
+            for (y = [-BASE_W/2 + 6, BASE_W/2 - 6])
                 translate([x, y, -BASE_TH - 1]) cylinder(d = 5, h = BASE_TH + 2);
     }
 }
