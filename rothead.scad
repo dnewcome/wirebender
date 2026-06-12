@@ -28,7 +28,7 @@ MANDREL_POS = [-26, MANDREL_OFFSET];                 // near the wire axis, at t
 // estimated motor envelopes (correct later)
 ROTMOT = [30, 24, 24];          // small geared stepper (rotation)  L(x)xWxH
 BENDER = [40, 24, 32];          // gutted servo + tiny stepper      L(x)xWxH
-LAYSHAFT_D = 5;
+BENDER_R = 24;                  // bender mass inboard of the 39mm mesh radius -> balance + smaller swing
 
 module head() rotate([rot, 0, 0]) {
     // tube clamp hub
@@ -46,12 +46,12 @@ module head() rotate([rot, 0, 0]) {
     color([0.55, 0.58, 0.62])
         translate([-6, -3, -MESH_R/2]) cube([12, 6, MESH_R], center = false);
 
-    // ── bender drivetrain (+Z): servo+stepper out at radius, layshaft in to mandrel ──
+    // ── bender drivetrain (+Z): servo+stepper inboard, single gear pair to the mandrel ──
     color([0.30, 0.55, 0.85])
-        translate([-BENDER[0] + 3, -BENDER[1]/2, MESH_R - BENDER[2]/2]) cube(BENDER);
-    color([0.6, 0.62, 0.66])       // layshaft: bender out -> mandrel in
+        translate([-BENDER[0] + 3, -BENDER[1]/2, BENDER_R - BENDER[2]/2]) cube(BENDER);
+    color([0.6, 0.62, 0.66])       // relocation gear pair span: servo output -> mandrel
         translate([MANDREL_POS[0] + 2, MANDREL_OFFSET, 6]) rotate([0, 0, 0])
-            cube([6, 4, MESH_R - 8]);
+            cube([6, 4, BENDER_R - 10]);
     // mandrel (Ø4, axis ⊥ wire) + shoe near the wire axis
     color([0.62, 0.64, 0.68])
         translate([MANDREL_POS[0], MANDREL_POS[1], -6]) cylinder(d = MANDREL_D, h = 16);
@@ -63,7 +63,7 @@ module head() rotate([rot, 0, 0]) {
         translate([MANDREL_POS[0], 0, 0]) rotate([0, 90, 0]) cylinder(d = 3, h = 26);
     // arm tying the bender to the hub
     color([0.55, 0.58, 0.62])
-        translate([-6, -3, 0]) cube([12, 6, MESH_R], center = false);
+        translate([-6, -3, 0]) cube([12, 6, BENDER_R], center = false);
 }
 
 // reference: the base's fixed gear (ghost) the pinion meshes
