@@ -3,3 +3,10 @@ __pycache__/
 *.pyc
 sim/preview/
 MUJOCO_LOG.TXT
+
+# ── generated artifacts (reproduce from source; never edit by hand) ──
+# CAD outputs — regenerate: py/bin/python cad/<part>.py
+build/
+# MuJoCo meshes + model — regenerate: cd sim && ../py/bin/python make_mjcf_v2.py
+sim/meshes/
+sim/wirebender*.xml
