@@ -9,7 +9,7 @@ from build123d import (BuildSketch, Polygon, Circle, PolarLocations, add,
                        extrude, Cylinder)
 
 
-def _involute_flank(rb, r0, ra, n=12):
+def _involute_flank(rb, r0, ra, n=7):
     """Involute points from radius r0 out to ra (flank on the +angle side)."""
     def pt(r):
         t = np.sqrt(max((r / rb) ** 2 - 1.0, 0.0))
@@ -38,8 +38,15 @@ def spur_gear(teeth, module, thickness, pressure_angle=20.0, bore=0.0):
     f1 = (R @ flank.T).T            # upper flank (root -> tip)
     f2 = f1 * np.array([1.0, -1.0])  # lower flank (mirror about X)
 
-    # closed tooth: up flank1, across the tip, down flank2, chord across the root
-    profile = [tuple(p) for p in f1] + [tuple(p) for p in f2[::-1]]
+    # extend each flank radially DOWN into the root disk so the tooth fuses to it
+    # (the involute only starts at rb, which can sit just outside rd -> floating teeth)
+    def to_root(p):
+        s = (rd - 0.5) / np.hypot(p[0], p[1])
+        return (p[0] * s, p[1] * s)
+
+    # closed tooth: root1, up flank1, across tip, down flank2, root2
+    profile = ([to_root(f1[0])] + [tuple(p) for p in f1]
+               + [tuple(p) for p in f2[::-1]] + [to_root(f2[0])])
 
     with BuildSketch() as sk:
         add(Circle(rd))                       # solid root disk

@@ -63,13 +63,6 @@ def upright(x):
     return body - seat - thru
 
 
-def gusset(x, dx):
-    """Triangular rib in the X-Z plane tying an upright to the base."""
-    h = AXIS_Z - BRG_OD / 2
-    tri = Polygon((0, -2), (dx * 14, -2), (0, h), align=None)
-    return Pos(x, 6, 0) * Rot(90, 0, 0) * extrude(tri, 12)
-
-
 def fixed_gear_unit():
     gear = (Pos(FG_X, 0, AXIS_Z) * Rot(0, 90, 0)
             * spur_gear(FG_TEETH, FG_MODULE, FG_W, bore=TUBE_BORE))
@@ -93,19 +86,12 @@ def base_plate():
 
 
 def build_base():
-    b = base_plate()
-    b += upright(FB_X)
-    b += upright(RB_X)
-    b += gusset(FB_X + UP_T / 2, 1)
-    b += gusset(RB_X - UP_T / 2, -1)
-    b += fixed_gear_unit()
-    # ease the upright/base junctions a touch (skip the gear + bearing bores)
-    soft = b.edges().filter_by(Axis.Y).group_by(Axis.Z)[0]
-    try:
-        b = fillet(soft, 2)
-    except Exception:
-        pass
-    return b
+    # frame is one fused solid; the fixed gear is kept as a separate touching solid
+    # (it connects to the front upright via its backing annulus). Fusing the
+    # many-faced involute gear into the frame is slow AND drops the teeth in OCC,
+    # so it rides along as a Compound child — still one printable object.
+    frame = base_plate() + upright(FB_X) + upright(RB_X)
+    return Compound(children=[frame, fixed_gear_unit()])
 
 
 if __name__ == "__main__":
