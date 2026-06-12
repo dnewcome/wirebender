@@ -1,5 +1,16 @@
 # MuJoCo simulation
 
+> **Status (2026-06):** the machine was re-architected and ported to build123d.
+> The current sim is `make_mjcf.py` + `view.py`, built directly from the
+> build123d STLs (`build/base.stl` + `build/rothead.stl`) — see `STRUCTURE.md`.
+> The bend-animation (`animate_bend.py`) and collision checker (`interference.py`)
+> described below were tied to the old OpenSCAD architecture and have been
+> **retired** pending a re-port. The **slicer / forward-model** sections
+> (`bend_model.py`, `slicer.py`) are still current. The text below is kept for the
+> slicer reference and is otherwise historical.
+
+---
+
 A rigid-body MuJoCo model of the **whole** wire bender. The bending head uses the
 real CAD meshes (placed with the same transforms as `assemble.py`, so it tracks
 the design); the rest of the machine is **roughed in with primitives** at nominal
