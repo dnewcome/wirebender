@@ -19,6 +19,8 @@ build/cyclo_body.stl: cad/gen_vendor.py
 	$(PY) cad/gen_vendor.py            # slow; needs the purchased Sweep Dynamics STEP
 build/feeder_body.stl: cad/gen_feeder.py extruder.glb
 	$(PY) cad/gen_feeder.py
+build/sleeve.stl: cad/sleeve.py cad/base.py
+	$(PY) cad/sleeve.py
 
 PARTS := build/base.stl build/rothead_assembly.stl build/bend_endcap.stl \
          build/cyclo_body.stl build/feeder_body.stl
@@ -42,6 +44,8 @@ slice:                             ## model -> G-code (IN=model.svg/.stl/example
 
 run: sim/wirebender.xml            ## run a sliced part in the sim (IN=part.gcode or a model/example)
 	cd sim && MUJOCO_GL=osmesa ../$(PY) animate_bend.py $(IN)
+
+sleeve: build/sleeve.stl           ## printed 1/4"-tube -> 608-bearing adapter (print x2)
 
 vendor: build/cyclo_body.stl       ## re-bake the cycloidal envelope (slow)
 
