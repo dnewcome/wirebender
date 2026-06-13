@@ -81,13 +81,14 @@ def bracket():
     return b
 
 
+CYC_BODY_H = 23.3       # real cycloidal envelope height (base->output), from gen_vendor
+
+
 def ghosts():
+    # the real cycloidal body + bend die are placed in the sim (make_mjcf); here just
+    # the pancake on the cycloidal base + the rotation pancake/pinion
     g = {}
-    # bend actuator stack on +Z: cycloidal body (block) then a real pancake stepper
-    g["cyclo"] = Pos(BEND_X, BEND_Y, OUT_Z + CYC_D / 2) * Box(CYC_SQ, CYC_SQ, CYC_D)
-    g["bend_pancake"] = Pos(BEND_X, BEND_Y, OUT_Z + CYC_D) * Rot(180, 0, 0) * nema17(depth=PANCAKE_D, shaft_len=18)
-    g["bend_disk"] = zcyl(CYC_OUT_D, 2, OUT_Z, x=BEND_X, y=BEND_Y)
-    # rotation pancake on -Z, axis ∥ X, + 12T pinion meshing the fixed gear
+    g["bend_pancake"] = Pos(BEND_X, BEND_Y, OUT_Z + CYC_BODY_H) * Rot(180, 0, 0) * nema17(depth=PANCAKE_D, shaft_len=18)
     g["rot_pancake"] = Pos(ROT_X, 0, -MESH_R) * Rot(0, 90, 0) * nema17(depth=PANCAKE_D, shaft_len=14)
     g["pinion"] = Pos(2, 0, -MESH_R) * Rot(0, 90, 0) * spur_gear(PIN_TEETH, FG_MODULE, FG_W, bore=5)
     return g

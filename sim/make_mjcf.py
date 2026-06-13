@@ -14,13 +14,15 @@ MESH = ROOT / "sim" / "meshes"
 MESH.mkdir(parents=True, exist_ok=True)
 for src, dst in [("build/base.stl", "base.stl"),
                  ("build/rothead_assembly.stl", "head.stl"),
-                 ("build/bend_endcap.stl", "benddie.stl")]:
+                 ("build/bend_endcap.stl", "benddie.stl"),
+                 ("build/cyclo_body.stl", "cyclo.stl")]:
     shutil.copy(ROOT / src, MESH / dst)
 
 ZAXIS = 0.041          # wire-axis height in the world (base lifted 6mm onto the floor)
 BASE_Z = ZAXIS - 0.035  # base frame wire axis is at 35mm
 # bend axis in the head frame (mm, from rothead.py): BEND_X, BEND_Y, output height
 BX, BY, BZ = -0.030, 0.0028, 0.008
+CYC_TOP = BZ + 0.0233   # cycloidal base sits 23.3mm above its output face
 
 XML = f"""<mujoco model="wirebender">
   <compiler angle="radian" meshdir="meshes"/>
@@ -33,6 +35,7 @@ XML = f"""<mujoco model="wirebender">
     <mesh name="base" file="base.stl" scale="0.001 0.001 0.001"/>
     <mesh name="head" file="head.stl" scale="0.001 0.001 0.001"/>
     <mesh name="benddie" file="benddie.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="cyclo" file="cyclo.stl" scale="0.001 0.001 0.001"/>
   </asset>
   <worldbody>
     <light pos="0.2 -0.3 0.6" dir="-0.3 0.5 -1"/>
@@ -44,6 +47,9 @@ XML = f"""<mujoco model="wirebender">
     <body name="head" pos="0 0 {ZAXIS}">
       <joint name="tube_rot" type="hinge" axis="1 0 0" range="-1.6 1.6"/>
       <geom type="mesh" mesh="head" pos="0 0 0" rgba="0.86 0.6 0.2 1" contype="0" conaffinity="0"/>
+      <!-- real cycloidal body (flipped so its output faces the wire) -->
+      <geom type="mesh" mesh="cyclo" pos="{BX} {BY} {CYC_TOP}" quat="0 1 0 0"
+            rgba="0.55 0.57 0.6 1" contype="0" conaffinity="0"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="2e-4 2e-4 2e-4"/>
       <!-- Axis 3: bend die (cycloidal output + pin) about the bend axis -->
       <body name="benddie" pos="{BX} {BY} {BZ}">
