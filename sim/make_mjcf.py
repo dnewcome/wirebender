@@ -18,8 +18,8 @@ for src, dst in [("build/base.stl", "base.stl"),
                  ("build/cyclo_body.stl", "cyclo.stl")]:
     shutil.copy(ROOT / src, MESH / dst)
 
-ZAXIS = 0.041          # wire-axis height in the world (base lifted 6mm onto the floor)
-BASE_Z = ZAXIS - 0.035  # base frame wire axis is at 35mm
+ZAXIS = 0.035          # wire-axis height in the world (35mm above the deck/floor)
+BASE_Z = ZAXIS - 0.029  # base frame wire axis is now 29mm above the base top
 # bend axis in the head frame (mm, from rothead.py): BEND_X, BEND_Y, output height
 BX, BY, BZ = -0.030, 0.0028, 0.008
 CYC_TOP = BZ + 0.0233   # cycloidal base sits 23.3mm above its output face

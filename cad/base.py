@@ -11,7 +11,9 @@ from build123d import *
 from gears import spur_gear
 
 # ── wire axis / feed tube ───────────────────────────────────────────
-AXIS_Z = 35.0
+AXIS_Z = 29.0          # wire axis above the base top; = 35mm above the deck (6mm plate).
+                       # The Ø63 fixed gear now dips below the base -> hangs off the
+                       # front overhang (machine is cantilevered / on a stand).
 TUBE_BORE = 10.0
 
 # ── fixed gear (head's rotation pinion meshes its outside) ──────────
@@ -25,12 +27,16 @@ UP_T, UP_W = 8.0, BRG_OD + 14
 UP_H = AXIS_Z + BRG_OD / 2 + 6
 
 # ── feeder (1KGSSJ-B) ───────────────────────────────────────────────
-FEEDER_X, FEEDER_L = 145.0, 122.0
+# Positioned so the feeder NOSE sits ~14mm in front of the rear bearing upright
+# (its output tube then reaches ~35mm further forward into the spindle).
+FEEDER_L = 122.0
+FEEDER_CLEAR = 14.0                          # gap from rear upright rear-face to feeder nose
+FEEDER_X = (RB_X + UP_T / 2) + FEEDER_CLEAR + FEEDER_L / 2   # nose at upright + 14mm
 FEEDER_BOLT_SPAN, FEEDER_BOLT_W1, FEEDER_BOLT_W2 = 104.5, 47.3, 27.3
 FEEDER_HOLE, FEEDER_MOTOR_HOLE = 5.3, 56.0
 FEEDER_MOTOR_X = FEEDER_X + FEEDER_BOLT_SPAN / 2 - 32
 FEEDER_NOSE_HOLE = 22.0
-FEEDER_NOSE_X = FEEDER_X - FEEDER_BOLT_SPAN / 2 - 6
+FEEDER_NOSE_X = FEEDER_X - FEEDER_BOLT_SPAN / 2 + 16   # 16mm BEHIND the front bolt line (inboard)
 FEEDER_HOLES = [
     (FEEDER_X - FEEDER_BOLT_SPAN / 2,  FEEDER_BOLT_W2 / 2),
     (FEEDER_X - FEEDER_BOLT_SPAN / 2, -FEEDER_BOLT_W2 / 2),
