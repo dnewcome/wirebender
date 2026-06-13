@@ -11,7 +11,7 @@ PY := py/bin/python
 # ── CAD parts (build123d -> build/*.stl) ────────────────────────────
 build/base.stl: cad/base.py cad/gears.py
 	$(PY) cad/base.py
-build/rothead_assembly.stl: cad/rothead.py cad/parts.py cad/gears.py
+build/rothead_assembly.stl: cad/rothead.py cad/parts.py cad/gears.py cad/pinion.py cad/base.py
 	$(PY) cad/rothead.py
 build/bend_endcap.stl: cad/bend_endcap.py
 	$(PY) cad/bend_endcap.py
@@ -21,6 +21,8 @@ build/feeder_body.stl: cad/gen_feeder.py extruder.glb
 	$(PY) cad/gen_feeder.py
 build/sleeve.stl: cad/sleeve.py cad/base.py
 	$(PY) cad/sleeve.py
+build/pinion.stl: cad/pinion.py cad/base.py cad/gears.py
+	$(PY) cad/pinion.py
 
 PARTS := build/base.stl build/rothead_assembly.stl build/bend_endcap.stl \
          build/cyclo_body.stl build/feeder_body.stl
@@ -31,13 +33,19 @@ sim/wirebender.xml: sim/make_mjcf.py $(PARTS)
 
 model: sim/wirebender.xml          ## regenerate the MuJoCo model
 
+parts: build/base.stl              ## (re)build the separately-printed base parts (plate/uprights/gear)
+	@echo "  build/: base_plate.stl  upright_front.stl  upright_rear.stl  gear.stl  sleeve.stl"
+
 sim: sim/wirebender.xml view       ## build what changed, then open the viewer
 
 view:                              ## open the MuJoCo viewer (drag rot/bend sliders)
 	cd sim && DISPLAY=:0 ../$(PY) view.py
 
-anim: sim/wirebender.xml           ## render a bend animation (NAME=staple|square|chair|coil)
+anim: sim/wirebender.xml           ## render a bend animation to a GIF (NAME=staple|square|chair|coil)
 	cd sim && MUJOCO_GL=osmesa ../$(PY) animate_bend.py $(or $(NAME),staple)
+
+anim-view: sim/wirebender.xml      ## play a bend program LIVE in the viewer (NAME=...; needs a display)
+	cd sim && DISPLAY=:0 ../$(PY) animate_bend.py $(or $(NAME),staple) --view
 
 slice:                             ## model -> G-code (IN=model.svg/.stl/example [OUT=part.gcode])
 	cd sim && ../$(PY) slicer.py $(IN) $(if $(OUT),-o $(OUT),)
@@ -46,6 +54,8 @@ run: sim/wirebender.xml            ## run a sliced part in the sim (IN=part.gcod
 	cd sim && MUJOCO_GL=osmesa ../$(PY) animate_bend.py $(IN)
 
 sleeve: build/sleeve.stl           ## printed 1/4"-tube -> 608-bearing adapter (print x2)
+
+pinion: build/pinion.stl           ## stepper pinion (12T, 5mm D-bore + M3 set screw)
 
 vendor: build/cyclo_body.stl       ## re-bake the cycloidal envelope (slow)
 

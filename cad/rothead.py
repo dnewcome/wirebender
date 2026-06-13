@@ -18,6 +18,7 @@ import os
 from build123d import *
 from gears import spur_gear
 from parts import nema17
+from pinion import pinion
 
 # Sweep Dynamics 20:1 micro-cycloidal STEP (vendor/paid geometry — NOT committed).
 # Point this at your local copy; the assembly falls back to a block if it's absent.
@@ -90,7 +91,7 @@ def ghosts():
     g = {}
     g["bend_pancake"] = Pos(BEND_X, BEND_Y, OUT_Z + CYC_BODY_H) * Rot(180, 0, 0) * nema17(depth=PANCAKE_D, shaft_len=18)
     g["rot_pancake"] = Pos(ROT_X, 0, -MESH_R) * Rot(0, 90, 0) * nema17(depth=PANCAKE_D, shaft_len=14)
-    g["pinion"] = Pos(2, 0, -MESH_R) * Rot(0, 90, 0) * spur_gear(PIN_TEETH, FG_MODULE, FG_W, bore=5)
+    g["pinion"] = Pos(2, 0, -MESH_R) * Rot(0, 90, 0) * pinion()   # real printable part (set screw + D-bore)
     return g
 
 

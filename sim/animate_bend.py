@@ -119,6 +119,59 @@ def _set_joint(model, data, name, val_rad):
     data.qpos[model.jnt_qposadr[jid]] = val_rad
 
 
+def _rgba(s):
+    return np.array([float(x) for x in s.split()], dtype=np.float32)
+
+
+def _add_capsule_scn(scn, p0, p1, r_mm, rgba):
+    """Append a capsule (mm endpoints) to a live MjvScene."""
+    if scn.ngeom >= scn.maxgeom:
+        return
+    g = scn.geoms[scn.ngeom]
+    mujoco.mjv_initGeom(g, mujoco.mjtGeom.mjGEOM_CAPSULE,
+                        np.zeros(3), np.zeros(3), np.zeros(9), rgba)
+    mujoco.mjv_connector(g, mujoco.mjtGeom.mjGEOM_CAPSULE, r_mm * 0.001,
+                         np.asarray(p0, float) * 0.001, np.asarray(p1, float) * 0.001)
+    scn.ngeom += 1
+
+
+def _draw_wire_scn(scn, W):
+    """Redraw the formed wire + stock stub into the viewer's user scene."""
+    scn.ngeom = 0
+    _add_capsule_scn(scn, B, [FEED_BACK_X, 0, ZAXIS_MM], WIRE_R_MM, _rgba(C_STOCK))
+    rgba = _rgba(C_FORMED)
+    for i in range(len(W) - 1):
+        if np.linalg.norm(W[i + 1] - W[i]) > 1e-6:
+            _add_capsule_scn(scn, W[i], W[i + 1], WIRE_R_MM, rgba)
+
+
+def view_live(name, program, springback=0.0, fps=20):
+    """Play the bend program live in the interactive MuJoCo viewer (needs a display).
+    The machine model loads once; the wire is drawn as user-scene capsules each frame."""
+    import time
+    import mujoco.viewer
+    frames = frames_for(program, springback=springback)
+    model = mujoco.MjModel.from_xml_path(str(XML))
+    data = mujoco.MjData(model)
+    cam = _fixed_camera(frames)
+    with mujoco.viewer.launch_passive(model, data) as viewer:
+        viewer.cam.azimuth, viewer.cam.elevation = cam.azimuth, cam.elevation
+        viewer.cam.distance = cam.distance
+        viewer.cam.lookat[:] = cam.lookat
+        print(f"playing '{name}' — orbit with the mouse · close the window to exit")
+        while viewer.is_running():
+            for tube_deg, bend_deg, W in frames:
+                if not viewer.is_running():
+                    break
+                _set_joint(model, data, "tube_rot", math.radians(tube_deg))
+                _set_joint(model, data, "bend", math.radians(bend_deg))
+                mujoco.mj_forward(model, data)
+                _draw_wire_scn(viewer.user_scn, W)
+                viewer.sync()
+                time.sleep(1.0 / fps)
+            time.sleep(0.6)        # hold the finished part, then loop
+
+
 def _fixed_camera(frames):
     allW = np.vstack([f[2] for f in frames])     # mm
     # the formed wire trails -X in front of the machine; view from the -X/side so the
@@ -189,9 +242,14 @@ def main():
     ap.add_argument("--piece", type=int, default=0, help="which piece (multi-piece input)")
     ap.add_argument("--tol", type=float, default=0.4, help="simplify tol mm (when slicing a file)")
     ap.add_argument("--springback", type=float, default=0.0)
+    ap.add_argument("--view", action="store_true",
+                    help="play live in the interactive MuJoCo viewer (needs a display)")
     args = ap.parse_args()
     name, program = _resolve_program(args.program, args.piece, args.tol)
-    render_gif(name, program, springback=args.springback)
+    if args.view:
+        view_live(name, program, springback=args.springback)
+    else:
+        render_gif(name, program, springback=args.springback)
 
 
 if __name__ == "__main__":
