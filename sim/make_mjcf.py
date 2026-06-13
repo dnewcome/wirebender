@@ -12,11 +12,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MESH = ROOT / "sim" / "meshes"
 MESH.mkdir(parents=True, exist_ok=True)
-for src, dst in [("build/base.stl", "base.stl"), ("build/rothead.stl", "head.stl")]:
+for src, dst in [("build/base.stl", "base.stl"),
+                 ("build/rothead_assembly.stl", "head.stl"),
+                 ("build/bend_endcap.stl", "benddie.stl")]:
     shutil.copy(ROOT / src, MESH / dst)
 
 ZAXIS = 0.041          # wire-axis height in the world (base lifted 6mm onto the floor)
 BASE_Z = ZAXIS - 0.035  # base frame wire axis is at 35mm
+# bend axis in the head frame (mm, from rothead.py): BEND_X, BEND_Y, output height
+BX, BY, BZ = -0.030, 0.0028, 0.008
 
 XML = f"""<mujoco model="wirebender">
   <compiler angle="radian" meshdir="meshes"/>
@@ -28,6 +32,7 @@ XML = f"""<mujoco model="wirebender">
   <asset>
     <mesh name="base" file="base.stl" scale="0.001 0.001 0.001"/>
     <mesh name="head" file="head.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="benddie" file="benddie.stl" scale="0.001 0.001 0.001"/>
   </asset>
   <worldbody>
     <light pos="0.2 -0.3 0.6" dir="-0.3 0.5 -1"/>
@@ -40,10 +45,17 @@ XML = f"""<mujoco model="wirebender">
       <joint name="tube_rot" type="hinge" axis="1 0 0" range="-1.6 1.6"/>
       <geom type="mesh" mesh="head" pos="0 0 0" rgba="0.86 0.6 0.2 1" contype="0" conaffinity="0"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="2e-4 2e-4 2e-4"/>
+      <!-- Axis 3: bend die (cycloidal output + pin) about the bend axis -->
+      <body name="benddie" pos="{BX} {BY} {BZ}">
+        <joint name="bend" type="hinge" axis="0 0 1" range="-3.2 3.2"/>
+        <geom type="mesh" mesh="benddie" quat="0 1 0 0" pos="0 0 0" rgba="0.95 0.5 0.15 1" contype="0" conaffinity="0"/>
+        <inertial pos="0 0 0" mass="0.05" diaginertia="2e-5 2e-5 2e-5"/>
+      </body>
     </body>
   </worldbody>
   <actuator>
     <position name="rot" joint="tube_rot" kp="3" ctrlrange="-1.6 1.6"/>
+    <position name="bend" joint="bend" kp="2" ctrlrange="-3.2 3.2"/>
   </actuator>
 </mujoco>
 """

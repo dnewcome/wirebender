@@ -1,40 +1,53 @@
-"""rothead.py — rotating head, build123d (cantilever architecture).
+"""rothead.py — rotating head, build123d (cycloidal bend axis).
 
-First structural pass as REAL connected solids (replaces the OpenSCAD massing).
-The printed head body clamps the feed tube and rotates about the wire axis
-(X = Axis 2). On it, opposite for balance:
-  +Z: bender drivetrain (gutted servo + tiny stepper -> gear train -> Ø4 mandrel),
-      inboard at BENDER_R so its moment ~ matches the rotation motor
-  -Z: rotation motor, its 12T pinion meshing the base's fixed gear (radius MESH_R)
+Massing of the cantilever head. It clamps the feed tube and rotates about the
+wire axis (X = Axis 2). On it:
+  +Z: BEND actuator = pancake stepper (24mm) + 20:1 micro-cycloidal (26mm), 42x42,
+      bend axis = Z; the cycloidal output carries the bend disk + Ø4 mandrel, set
+      so the wire runs tangent to the mandrel.
+  -Z: ROTATION motor — a stepper at the 39mm mesh radius; its 12T pinion meshes the
+      base's fixed gear AND it serves as the counterweight for the bend actuator.
 
-Frame: X = wire axis (rotation axis, origin on it); head body at x<0, forward of
-the base. Motors + gears are GHOSTS (bought parts); only the body is printed.
+Balance: bend 188g at CoM radius ~33  vs  rotation motor mass at radius 39.
 
+Frame: X = wire axis (rotation axis, origin on it). Motors/cycloidal/mandrel are
+GHOSTS (bought/printed-separately parts); the printed bracket ties them together.
 Run:  py/bin/python cad/rothead.py   ->  build/rothead.{stl,step}
-NOTE: the bender drivetrain ORIENTATION (servo output -> Y-axis mandrel gear train)
-is still to be resolved — here it's mounts + a mandrel bearing boss + ghosts.
 """
 import os
 from build123d import *
 from gears import spur_gear
+from parts import nema17
 
-# ── shared with base.py (keep in sync) ──────────────────────────────
+# Sweep Dynamics 20:1 micro-cycloidal STEP (vendor/paid geometry — NOT committed).
+# Point this at your local copy; the assembly falls back to a block if it's absent.
+CYCLO_STEP = os.path.expanduser(
+    "~/Downloads/cad-files/sweepdynamics/micro-cycloidal/20-1 Micro Cycloidal.step")
+CYCLO_H = 25.9          # cycloidal body depth; output face on one end
+
+# ── shared with base.py ─────────────────────────────────────────────
 FG_TEETH, FG_MODULE, FG_W, PIN_TEETH = 40, 1.5, 8.0, 12
-MESH_R = (FG_TEETH + PIN_TEETH) * FG_MODULE / 2           # 39
+MESH_R = (FG_TEETH + PIN_TEETH) * FG_MODULE / 2            # 39
 TUBE_D = 8.0
 
-# ── head ────────────────────────────────────────────────────────────
-HUB_OD = 18.0
-HUB_X0, HUB_X1 = -28.0, -2.0
-CLAMP_GAP = 1.6                              # pinch slit
+# ── bend actuator (pancake + micro-cycloidal) ───────────────────────
+CYC_SQ = 42.0                       # 42x42 NEMA17 / cycloidal footprint
+CYC_D = 26.0                        # cycloidal body depth
+PANCAKE_D = 24.0                    # pancake stepper depth
+BEND_STACK = CYC_D + PANCAKE_D      # 50mm along the bend axis (+Z)
+CYC_OUT_D = 30.0                    # output bearing OD (bend-disk seat)
 MANDREL_D, MANDREL_OFFSET = 4.0, 2.8
-MANDREL_X = -24.0
-MBRG_OD, MBRG_W = 12.0, 4.0                  # MR small bearing for the mandrel journal
+BEND_X = -30.0                      # bend axis X (at the wire exit, front of head)
+BEND_Y = MANDREL_OFFSET             # bend axis offset so the wire is tangent
+OUT_Z = 8.0                         # cycloidal output face height above the wire
 
-ROTMOT = (30.0, 24.0, 24.0)                  # rotation geared stepper  (L along X)
-BENDER = (40.0, 24.0, 32.0)                  # gutted servo + tiny stepper
-BENDER_R = 24.0                              # inboard -> balances the lighter rotation motor at 39
-ARM_T = 6.0                                  # connecting-arm thickness
+# ── rotation motor ──────────────────────────────────────────────────
+ROTMOT = (PANCAKE_D, CYC_SQ, CYC_SQ)   # pancake on -Z, axis ∥ X (L along X)
+ROT_X = -14.0
+
+# ── tube clamp hub ──────────────────────────────────────────────────
+HUB_OD = 18.0
+HUB_X0, HUB_X1 = -26.0, -2.0
 
 
 def xcyl(d, x0, x1, y=0.0, z=0.0):
@@ -42,64 +55,46 @@ def xcyl(d, x0, x1, y=0.0, z=0.0):
         d / 2, x1 - x0, align=(Align.CENTER, Align.CENTER, Align.MIN))
 
 
+def zcyl(d, z0, z1, x=0.0, y=0.0):
+    return Pos(x, y, z0) * Cylinder(d / 2, z1 - z0, align=(Align.CENTER, Align.CENTER, Align.MIN))
+
+
 def hub():
     h = xcyl(HUB_OD, HUB_X0, HUB_X1)
-    h -= xcyl(TUBE_D, HUB_X0 - 1, HUB_X1 + 1)               # tube bore
-    # pinch slit + lug with an M3 cross-bolt
-    h -= Pos((HUB_X0 + HUB_X1) / 2, 0, HUB_OD / 2) * Box(HUB_X1 - HUB_X0 + 2, CLAMP_GAP, HUB_OD)
-    lug = Pos((HUB_X0 + HUB_X1) / 2, 0, HUB_OD / 2 + 3) * Box(14, 12, 8)
-    lug -= Pos((HUB_X0 + HUB_X1) / 2, 0, HUB_OD / 2 + 3) * Rot(90, 0, 0) * Cylinder(1.6, 14)
-    return h + lug
+    h -= xcyl(TUBE_D, HUB_X0 - 1, HUB_X1 + 1)
+    h -= Pos((HUB_X0 + HUB_X1) / 2, 0, HUB_OD / 2) * Box(HUB_X1 - HUB_X0 + 2, 1.6, HUB_OD)  # pinch slit
+    return h
 
 
-def motor_pad(z, depth):
-    """Mounting pad at radius |z| on the wire axis side, normal to X (face at x=0)."""
-    pad = Pos(-depth / 2, 0, z) * Box(depth, ROTMOT[1] + 8, ROTMOT[2] + 8)
-    return pad
-
-
-def arm(z0, z1):
-    """Web in the X-Z plane tying the hub to a motor pad."""
-    lo, hi = sorted((z0, z1))
-    return Pos((HUB_X0 + HUB_X1) / 2, 0, (lo + hi) / 2) * Box(HUB_X1 - HUB_X0, ARM_T, hi - lo)
-
-
-def mandrel_boss():
-    # boss around the mandrel journal (mandrel axis = Z here, near the wire axis)
-    boss = Pos(MANDREL_X, MANDREL_OFFSET, -MBRG_W) * Cylinder(
-        MBRG_OD / 2 + 3, MBRG_W + 4, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    boss -= Pos(MANDREL_X, MANDREL_OFFSET, -MBRG_W) * Cylinder(
-        MBRG_OD / 2, MBRG_W, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    boss -= Pos(MANDREL_X, MANDREL_OFFSET, -MBRG_W - 1) * Cylinder(MANDREL_D / 2 + 0.6, MBRG_W + 10)
-    # wire-guide rib along X at the wire axis, up to the mandrel
-    rib = Pos(MANDREL_X - 1, 0, 1) * Box(8, 6, 6)
-    rib -= xcyl(3, MANDREL_X - 6, MANDREL_X + 6, z=1)
-    return boss + rib
-
-
-def build_head():
+def bracket():
+    """Rough printed bracket: hub + web up to the cycloidal mount + web down to the
+    rotation-motor mount. Detail (bolt patterns, mandrel support) comes next."""
     b = hub()
-    b += arm(HUB_OD / 2 - 2, BENDER_R)             # up to bender
-    b += motor_pad(BENDER_R + BENDER[2] / 2 - 4, 6)
-    b += arm(-MESH_R, -(HUB_OD / 2 - 2))           # down to rotation motor
-    b += motor_pad(-MESH_R, 6)
-    b += mandrel_boss()
-    try:
-        b = fillet(b.edges().filter_by(Axis.X).group_by(SortBy.LENGTH)[-1], 1.5)
-    except Exception:
-        pass
+    # web up to the cycloidal base plate (+Z)
+    b += Pos(BEND_X + 6, BEND_Y, OUT_Z / 2) * Box(20, 10, OUT_Z + 4)
+    b += Pos(BEND_X, BEND_Y, OUT_Z - 2) * Box(CYC_SQ, CYC_SQ, 4)            # cycloidal mount plate
+    # spine tying the hub to the bend mount
+    b += Pos((HUB_X0 + BEND_X) / 2 - 2, BEND_Y / 2, 1) * Box(28, 10, 8)
+    # web down to the rotation-motor mount (-Z)
+    b += Pos(ROT_X, 0, -MESH_R / 2) * Box(10, 12, MESH_R)
+    b += Pos(ROT_X, 0, -MESH_R) * Box(8, CYC_SQ + 4, CYC_SQ + 4)            # rotation mount plate
     return b
 
 
 def ghosts():
-    """Bought parts, for the assembly view only."""
     g = {}
-    g["pinion"] = Pos(0, 0, -MESH_R) * Rot(0, 90, 0) * spur_gear(PIN_TEETH, FG_MODULE, FG_W, bore=4)
-    g["rotmot"] = Pos(-ROTMOT[0] + 2, 0, -MESH_R) * Box(*ROTMOT)
-    g["bender"] = Pos(-BENDER[0] / 2 + 2, 0, BENDER_R) * Box(*BENDER)
-    g["mandrel"] = Pos(MANDREL_X, MANDREL_OFFSET, -8) * Cylinder(
-        MANDREL_D / 2, 18, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    # bend actuator stack on +Z: cycloidal body (block) then a real pancake stepper
+    g["cyclo"] = Pos(BEND_X, BEND_Y, OUT_Z + CYC_D / 2) * Box(CYC_SQ, CYC_SQ, CYC_D)
+    g["bend_pancake"] = Pos(BEND_X, BEND_Y, OUT_Z + CYC_D) * Rot(180, 0, 0) * nema17(depth=PANCAKE_D, shaft_len=18)
+    g["bend_disk"] = zcyl(CYC_OUT_D, 2, OUT_Z, x=BEND_X, y=BEND_Y)
+    # rotation pancake on -Z, axis ∥ X, + 12T pinion meshing the fixed gear
+    g["rot_pancake"] = Pos(ROT_X, 0, -MESH_R) * Rot(0, 90, 0) * nema17(depth=PANCAKE_D, shaft_len=14)
+    g["pinion"] = Pos(2, 0, -MESH_R) * Rot(0, 90, 0) * spur_gear(PIN_TEETH, FG_MODULE, FG_W, bore=5)
     return g
+
+
+def build_head():
+    return bracket()
 
 
 if __name__ == "__main__":
@@ -107,11 +102,8 @@ if __name__ == "__main__":
     head = build_head()
     export_stl(head, "build/rothead.stl")
     export_step(head, "build/rothead.step")
-    # combined assembly STL for viewing (body + ghosts)
-    asm = head
-    for s in ghosts().values():
-        asm += s
+    asm = Compound(children=[head] + list(ghosts().values()))
     export_stl(asm, "build/rothead_assembly.stl")
-    bb = head.bounding_box()
-    print("head body volume", round(head.volume, 1),
-          "bbox", [round(v, 1) for v in (bb.size.X, bb.size.Y, bb.size.Z)])
+    bb = asm.bounding_box()
+    print("assembly bbox", [round(v, 1) for v in (bb.size.X, bb.size.Y, bb.size.Z)],
+          "swing R ~", round(max(abs(bb.min.Z), abs(bb.max.Z)), 1))
