@@ -95,7 +95,12 @@ def bracket():
     # spine tying the hub to the bend mount
     b += Pos((HUB_X0 + BEND_X) / 2 - 2, BEND_Y / 2, 1) * Box(28, 10, 8)
     # web down to the rotation-motor mount (-Z)
-    b += Pos(ROT_X, 0, -MESH_R / 2) * Box(10, 12, MESH_R)
+    # tie the hub to the TOP EDGE of the mount plate only — the motor envelope
+    # (body behind the face; boss/shaft/pinion along the centre at z=-MESH_R)
+    # fills the centre, so the old centreline spine collided with it.
+    plate_top = -MESH_R + (NEMA + 2) / 2                       # -16.85
+    web_h = 2 - (plate_top - 4)
+    b += Pos(ROT_X + MOUNT_T / 2, 0, 2 - web_h / 2) * Box(MOUNT_T, 16, web_h)
     b += rot_mount()                                                        # NEMA17 face mount
     return b
 
