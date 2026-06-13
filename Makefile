@@ -34,6 +34,9 @@ sim: sim/wirebender.xml view       ## build what changed, then open the viewer
 view:                              ## open the MuJoCo viewer (drag rot/bend sliders)
 	cd sim && DISPLAY=:0 ../$(PY) view.py
 
+anim: sim/wirebender.xml           ## render a bend animation (NAME=staple|square|chair|coil)
+	cd sim && MUJOCO_GL=osmesa ../$(PY) animate_bend.py $(or $(NAME),staple)
+
 vendor: build/cyclo_body.stl       ## re-bake the cycloidal envelope (slow)
 
 clean:                             ## delete generated STLs/STEPs/meshes/model

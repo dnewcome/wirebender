@@ -26,7 +26,8 @@ BX, BY, BZ = -0.030, 0.0028, 0.008
 CYC_TOP = BZ + 0.0233   # cycloidal base sits 23.3mm above its output face
 # feeder body: centred mesh, mounting face (-Z) on the base top, nose on -X
 FEEDER_X = 0.151                  # feeder centre on the wire axis (from base.py)
-FEEDER_Z = BASE_Z + 0.015         # mesh centre = base top + half the 30mm body
+FEEDER_Z = ZAXIS                  # output (mesh mid-Z) on the wire axis; the GLB body is
+                                  # an approximation so it rides a touch high off the base
 
 XML = f"""<mujoco model="wirebender">
   <compiler angle="radian" meshdir="meshes"/>
@@ -49,7 +50,7 @@ XML = f"""<mujoco model="wirebender">
           contype="0" conaffinity="0"/>
     <geom name="tube" type="cylinder" fromto="-0.03 0 {ZAXIS} 0.095 0 {ZAXIS}" size="0.004"
           rgba="0.6 0.62 0.66 1" contype="0" conaffinity="0"/>
-    <geom name="feeder" type="mesh" mesh="feeder" pos="{FEEDER_X} 0 {FEEDER_Z}"
+    <geom name="feeder" type="mesh" mesh="feeder" pos="{FEEDER_X} 0 {FEEDER_Z}" quat="0 0 0 1"
           rgba="0.3 0.31 0.34 1" contype="0" conaffinity="0"/>
     <body name="head" pos="0 0 {ZAXIS}">
       <joint name="tube_rot" type="hinge" axis="1 0 0" range="-1.6 1.6"/>
