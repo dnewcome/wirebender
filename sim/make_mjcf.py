@@ -15,7 +15,8 @@ MESH.mkdir(parents=True, exist_ok=True)
 for src, dst in [("build/base.stl", "base.stl"),
                  ("build/rothead_assembly.stl", "head.stl"),
                  ("build/bend_endcap.stl", "benddie.stl"),
-                 ("build/cyclo_body.stl", "cyclo.stl")]:
+                 ("build/cyclo_body.stl", "cyclo.stl"),
+                 ("build/feeder_body.stl", "feeder.stl")]:
     shutil.copy(ROOT / src, MESH / dst)
 
 ZAXIS = 0.035          # wire-axis height in the world (35mm above the deck/floor)
@@ -23,6 +24,9 @@ BASE_Z = ZAXIS - 0.029  # base frame wire axis is now 29mm above the base top
 # bend axis in the head frame (mm, from rothead.py): BEND_X, BEND_Y, output height
 BX, BY, BZ = -0.030, 0.0028, 0.008
 CYC_TOP = BZ + 0.0233   # cycloidal base sits 23.3mm above its output face
+# feeder body: centred mesh, mounting face (-Z) on the base top, nose on -X
+FEEDER_X = 0.151                  # feeder centre on the wire axis (from base.py)
+FEEDER_Z = BASE_Z + 0.015         # mesh centre = base top + half the 30mm body
 
 XML = f"""<mujoco model="wirebender">
   <compiler angle="radian" meshdir="meshes"/>
@@ -36,6 +40,7 @@ XML = f"""<mujoco model="wirebender">
     <mesh name="head" file="head.stl" scale="0.001 0.001 0.001"/>
     <mesh name="benddie" file="benddie.stl" scale="0.001 0.001 0.001"/>
     <mesh name="cyclo" file="cyclo.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="feeder" file="feeder.stl" scale="0.001 0.001 0.001"/>
   </asset>
   <worldbody>
     <light pos="0.2 -0.3 0.6" dir="-0.3 0.5 -1"/>
@@ -44,6 +49,8 @@ XML = f"""<mujoco model="wirebender">
           contype="0" conaffinity="0"/>
     <geom name="tube" type="cylinder" fromto="-0.03 0 {ZAXIS} 0.095 0 {ZAXIS}" size="0.004"
           rgba="0.6 0.62 0.66 1" contype="0" conaffinity="0"/>
+    <geom name="feeder" type="mesh" mesh="feeder" pos="{FEEDER_X} 0 {FEEDER_Z}"
+          rgba="0.3 0.31 0.34 1" contype="0" conaffinity="0"/>
     <body name="head" pos="0 0 {ZAXIS}">
       <joint name="tube_rot" type="hinge" axis="1 0 0" range="-1.6 1.6"/>
       <geom type="mesh" mesh="head" pos="0 0 0" rgba="0.86 0.6 0.2 1" contype="0" conaffinity="0"/>

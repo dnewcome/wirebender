@@ -17,8 +17,11 @@ build/bend_endcap.stl: cad/bend_endcap.py
 	$(PY) cad/bend_endcap.py
 build/cyclo_body.stl: cad/gen_vendor.py
 	$(PY) cad/gen_vendor.py            # slow; needs the purchased Sweep Dynamics STEP
+build/feeder_body.stl: cad/gen_feeder.py extruder.glb
+	$(PY) cad/gen_feeder.py
 
-PARTS := build/base.stl build/rothead_assembly.stl build/bend_endcap.stl build/cyclo_body.stl
+PARTS := build/base.stl build/rothead_assembly.stl build/bend_endcap.stl \
+         build/cyclo_body.stl build/feeder_body.stl
 
 # ── MuJoCo model (parts -> wirebender.xml + meshes) ─────────────────
 sim/wirebender.xml: sim/make_mjcf.py $(PARTS)
