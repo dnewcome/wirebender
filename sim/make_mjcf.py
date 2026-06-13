@@ -19,15 +19,15 @@ for src, dst in [("build/base.stl", "base.stl"),
                  ("build/feeder_body.stl", "feeder.stl")]:
     shutil.copy(ROOT / src, MESH / dst)
 
-ZAXIS = 0.035          # wire-axis height in the world (35mm above the deck/floor)
-BASE_Z = ZAXIS - 0.029  # base frame wire axis is now 29mm above the base top
+ZAXIS = 0.021          # wire-axis height in the world (21mm above the deck/floor)
+BASE_Z = ZAXIS - 0.015  # base frame wire axis is 15mm above the base top (base still on floor)
 # bend axis in the head frame (mm, from rothead.py): BEND_X, BEND_Y, output height
 BX, BY, BZ = -0.030, 0.0028, 0.008
 CYC_TOP = BZ + 0.0233   # cycloidal base sits 23.3mm above its output face
 # feeder body: centred mesh, mounting face (-Z) on the base top, nose on -X
 FEEDER_X = 0.151                  # feeder centre on the wire axis (from base.py)
-FEEDER_Z = ZAXIS                  # output (mesh mid-Z) on the wire axis; the GLB body is
-                                  # an approximation so it rides a touch high off the base
+FEEDER_Z = ZAXIS                  # output (mesh mid-Z) on the wire axis; the mounting face
+                                  # (mesh -Z, 15mm below) now lands exactly on the base top
 
 XML = f"""<mujoco model="wirebender">
   <compiler angle="radian" meshdir="meshes"/>

@@ -24,7 +24,7 @@ XML = HERE / "wirebender.xml"
 OUT = HERE / "preview"
 
 # ── machine frame (mm): wire axis = X at (y=0, z=35); bend point at the head front ──
-ZAXIS_MM = 35.0
+ZAXIS_MM = 21.0
 B = np.array([-30.0, 0.0, ZAXIS_MM])     # bend point (mandrel), fixed in world
 E = np.array([-1.0, 0.0, 0.0])           # formed wire trails -X (out the front)
 B0 = np.array([0.0, -1.0, 0.0])          # deflect in -Y -> bend axis = +Z (the cycloidal
@@ -160,12 +160,38 @@ def render_gif(name, program, springback=0.0):
     print(f"wrote {path}  ({len(imgs)} frames)")
 
 
+def _resolve_program(source, piece, tol):
+    """source -> (display_name, program). Accepts a built-in example name, a
+    .gcode file (parsed back), or any slicer input (path file / SVG / mesh)."""
+    if source in EXAMPLES:
+        return source, EXAMPLES[source]
+    p = Path(source)
+    if not p.exists():
+        raise SystemExit(f"{source!r} is not an example ({', '.join(EXAMPLES)}) or a file")
+    import slicer
+    if p.suffix.lower() == ".gcode":
+        programs = slicer.parse_gcode(p.read_text())
+    else:                                   # slice it the same way slicer.py would
+        _, paths = slicer.extract(str(p))
+        programs = [slicer.slice_path(P, simplify_tol=tol) for P in paths]
+    if not programs:
+        raise SystemExit(f"no bend program found in {source!r}")
+    if len(programs) > 1:
+        print(f"# {len(programs)} pieces; animating piece {piece+1} "
+              f"(use --piece N for others)")
+    return f"{p.stem}_p{piece+1}" if len(programs) > 1 else p.stem, programs[piece]
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("program", nargs="?", default="staple", choices=list(EXAMPLES))
+    ap.add_argument("program", nargs="?", default="staple",
+                    help=f"example ({', '.join(EXAMPLES)}), a .gcode file, or a path/SVG/mesh")
+    ap.add_argument("--piece", type=int, default=0, help="which piece (multi-piece input)")
+    ap.add_argument("--tol", type=float, default=0.4, help="simplify tol mm (when slicing a file)")
     ap.add_argument("--springback", type=float, default=0.0)
     args = ap.parse_args()
-    render_gif(args.program, EXAMPLES[args.program], springback=args.springback)
+    name, program = _resolve_program(args.program, args.piece, args.tol)
+    render_gif(name, program, springback=args.springback)
 
 
 if __name__ == "__main__":

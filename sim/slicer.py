@@ -417,6 +417,49 @@ def _gcode_block(program, springback, feed_rate):
     return lines, nb
 
 
+def parse_gcode(text):
+    """Inverse of to_gcode: read GRBL G-code -> list of programs (one per piece).
+
+    X=feed(mm, absolute), Y=tube rotation(deg, absolute), Z=bend(deg, commanded;
+    Z0 is the release and is dropped). G92 zeroes the axes; M0 starts a new piece.
+    Returns [[(op, value), ...], ...] ready for bend_model.simulate / the animator.
+    """
+    programs, prog = [], []
+    x = y = 0.0
+    for raw in text.splitlines():
+        line = raw.split(";", 1)[0].strip()
+        if not line:
+            continue
+        word = line.split()[0].upper()
+        if word == "M0":                       # cut & reload -> next piece
+            if prog:
+                programs.append(prog)
+            prog = []
+            continue
+        if word == "G92":                      # zero the axes
+            x = y = 0.0
+            continue
+        if word != "G1":
+            continue
+        fields = {t[0].upper(): float(t[1:]) for t in line.split()[1:]
+                  if t[0].upper() in "XYZ"}
+        if "X" in fields:
+            d = fields["X"] - x
+            x = fields["X"]
+            if abs(d) > 1e-9:
+                prog.append(("feed", d))
+        if "Y" in fields:
+            d = fields["Y"] - y
+            y = fields["Y"]
+            if abs(d) > 1e-9:
+                prog.append(("rotate", d))
+        if "Z" in fields and abs(fields["Z"]) > 1e-9:   # nonzero Z = a bend (Z0 = release)
+            prog.append(("bend", fields["Z"]))
+    if prog:
+        programs.append(prog)
+    return programs
+
+
 def to_gcode(programs, springback=0.0, feed_rate=400, name="part"):
     """Emit GRBL G-code. X=feed(mm) Y=tube rotation(deg) Z=bend(deg). Accepts one
     program or a list; multiple pieces are separated by a cut/reload pause."""

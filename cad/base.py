@@ -11,8 +11,10 @@ from build123d import *
 from gears import spur_gear
 
 # ── wire axis / feed tube ───────────────────────────────────────────
-AXIS_Z = 29.0          # wire axis above the base top; = 35mm above the deck (6mm plate).
-                       # The Ø63 fixed gear now dips below the base -> hangs off the
+AXIS_Z = 15.0          # wire axis above the base top; = 21mm above the deck (6mm plate).
+                       # Lowered so the feeder sits flat on the base (its wire output is
+                       # ~15mm above its mounting face) and the feed tube lines up with it.
+                       # The Ø63 fixed gear dips well below the base -> hangs off the
                        # front overhang (machine is cantilevered / on a stand).
 TUBE_BORE = 10.0
 
@@ -35,7 +37,7 @@ FEEDER_X = (RB_X + UP_T / 2) + FEEDER_CLEAR + FEEDER_L / 2   # nose at upright +
 FEEDER_BOLT_SPAN, FEEDER_BOLT_W1, FEEDER_BOLT_W2 = 104.5, 47.3, 27.3
 FEEDER_HOLE, FEEDER_MOTOR_HOLE = 5.3, 56.0
 FEEDER_MOTOR_X = FEEDER_X + FEEDER_BOLT_SPAN / 2 - 32
-FEEDER_NOSE_HOLE = 22.0
+FEEDER_NOSE_HOLE = 24.0
 FEEDER_NOSE_X = FEEDER_X - FEEDER_BOLT_SPAN / 2 + 16   # 16mm BEHIND the front bolt line (inboard)
 FEEDER_HOLES = [
     (FEEDER_X - FEEDER_BOLT_SPAN / 2,  FEEDER_BOLT_W2 / 2),

@@ -37,6 +37,12 @@ view:                              ## open the MuJoCo viewer (drag rot/bend slid
 anim: sim/wirebender.xml           ## render a bend animation (NAME=staple|square|chair|coil)
 	cd sim && MUJOCO_GL=osmesa ../$(PY) animate_bend.py $(or $(NAME),staple)
 
+slice:                             ## model -> G-code (IN=model.svg/.stl/example [OUT=part.gcode])
+	cd sim && ../$(PY) slicer.py $(IN) $(if $(OUT),-o $(OUT),)
+
+run: sim/wirebender.xml            ## run a sliced part in the sim (IN=part.gcode or a model/example)
+	cd sim && MUJOCO_GL=osmesa ../$(PY) animate_bend.py $(IN)
+
 vendor: build/cyclo_body.stl       ## re-bake the cycloidal envelope (slow)
 
 clean:                             ## delete generated STLs/STEPs/meshes/model
