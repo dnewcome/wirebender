@@ -17,7 +17,7 @@ Run:  py/bin/python cad/rothead.py   ->  build/rothead.{stl,step}
 import os
 from build123d import *
 from gears import spur_gear
-from parts import nema17
+from parts import nema17, NEMA, NEMA_BOLT
 from pinion import pinion
 
 # Sweep Dynamics 20:1 micro-cycloidal STEP (vendor/paid geometry — NOT committed).
@@ -44,7 +44,10 @@ OUT_Z = 8.0                         # cycloidal output face height above the wir
 
 # ── rotation motor ──────────────────────────────────────────────────
 ROTMOT = (PANCAKE_D, CYC_SQ, CYC_SQ)   # pancake on -Z, axis ∥ X (L along X)
-ROT_X = -14.0
+ROT_X = -14.0                          # motor front face (X); body extends -X, shaft +X
+MOUNT_T = 6.0                          # face-plate thickness (bolt through it into the motor)
+PILOT_CLEAR = 22.5                     # clears the Ø22 pilot boss; shaft passes through too
+M3_CLEAR = 3.4                         # NEMA17 face is tapped M3, so the plate gets clearance
 
 # ── tube clamp hub ──────────────────────────────────────────────────
 HUB_OD = 18.0
@@ -67,6 +70,21 @@ def hub():
     return h
 
 
+def rot_mount():
+    """NEMA17 face mount for the rotation motor. The motor seats on the -X side
+    (its pilot boss into the bore), bolts pass +X through the plate into the
+    motor's tapped face holes, and the shaft passes through to the pinion. Built
+    in the motor's local frame (face at z=0, +Z toward the gear), then placed."""
+    plate = Pos(0, 0, MOUNT_T / 2) * Box(NEMA + 2, NEMA + 2, MOUNT_T)
+    plate -= Pos(0, 0, -1) * Cylinder(PILOT_CLEAR / 2, MOUNT_T + 2,
+                                      align=(Align.CENTER, Align.CENTER, Align.MIN))
+    for sx in (NEMA_BOLT / 2, -NEMA_BOLT / 2):
+        for sy in (NEMA_BOLT / 2, -NEMA_BOLT / 2):
+            plate -= Pos(sx, sy, -1) * Cylinder(M3_CLEAR / 2, MOUNT_T + 2,
+                                                align=(Align.CENTER, Align.CENTER, Align.MIN))
+    return Pos(ROT_X, 0, -MESH_R) * Rot(0, 90, 0) * plate
+
+
 def bracket():
     """Rough printed bracket: hub + web up to the cycloidal mount + web down to the
     rotation-motor mount. Detail (bolt patterns, mandrel support) comes next."""
@@ -78,7 +96,7 @@ def bracket():
     b += Pos((HUB_X0 + BEND_X) / 2 - 2, BEND_Y / 2, 1) * Box(28, 10, 8)
     # web down to the rotation-motor mount (-Z)
     b += Pos(ROT_X, 0, -MESH_R / 2) * Box(10, 12, MESH_R)
-    b += Pos(ROT_X, 0, -MESH_R) * Box(8, CYC_SQ + 4, CYC_SQ + 4)            # rotation mount plate
+    b += rot_mount()                                                        # NEMA17 face mount
     return b
 
 
