@@ -41,6 +41,10 @@ MANDREL_D, MANDREL_OFFSET = 4.0, 2.8
 BEND_X = -30.0                      # bend axis X (at the wire exit, front of head)
 BEND_Y = MANDREL_OFFSET             # bend axis offset so the wire is tangent
 OUT_Z = 8.0                         # cycloidal output face height above the wire
+CYC_BODY_H = 23.3                   # real cycloidal envelope height (output->input), from gen_vendor
+BEND_PLATE_Z = OUT_Z + CYC_BODY_H   # cycloid INPUT/motor face (top) — head hangs below it
+CYC_BOLT = 31.0                     # cycloid input bolt square (NEMA17 4xM3) — measured from the STL
+CYC_BOSS = 28.0                     # cycloid input boss Ø — measured from the STL
 
 # ── rotation motor ──────────────────────────────────────────────────
 ROTMOT = (PANCAKE_D, CYC_SQ, CYC_SQ)   # pancake on -Z, axis ∥ X (L along X)
@@ -85,15 +89,33 @@ def rot_mount():
     return Pos(ROT_X, 0, -MESH_R) * Rot(0, 90, 0) * plate
 
 
+def bend_mount():
+    """Plate at the cycloid's INPUT (motor) face — the top of the hanging bend
+    stack. The pancake sandwiches this plate to the cycloid via the real 31mm
+    4xM3 pattern; the Ø28 input boss + shaft clear the central bore. A spine runs
+    down the +X side of the cycloid (clear of the 42mm body) to the tube hub."""
+    z0 = BEND_PLATE_Z
+    plate = Pos(BEND_X, BEND_Y, z0 + MOUNT_T / 2) * Box(CYC_SQ + 2, CYC_SQ + 2, MOUNT_T)
+    plate -= Pos(BEND_X, BEND_Y, z0 - 1) * Cylinder((CYC_BOSS + 1) / 2, MOUNT_T + 2,
+                                                    align=(Align.CENTER, Align.CENTER, Align.MIN))
+    for sx in (CYC_BOLT / 2, -CYC_BOLT / 2):
+        for sy in (CYC_BOLT / 2, -CYC_BOLT / 2):
+            plate -= Pos(BEND_X + sx, BEND_Y + sy, z0 - 1) * Cylinder(
+                M3_CLEAR / 2, MOUNT_T + 2, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    # spine down the +X side of the cycloid (clear of the 42mm body) to the hub
+    sx0 = BEND_X + CYC_SQ / 2 + 1                        # -8: just clear of the body (+X edge -9)
+    h = z0 + MOUNT_T + 4
+    spine = Pos(sx0 + 2.5, BEND_Y / 2, (z0 + MOUNT_T) / 2 - 2) * Box(5, 14, h)
+    return plate + spine
+
+
 def bracket():
     """Rough printed bracket: hub + web up to the cycloidal mount + web down to the
     rotation-motor mount. Detail (bolt patterns, mandrel support) comes next."""
     b = hub()
-    # web up to the cycloidal base plate (+Z)
-    b += Pos(BEND_X + 6, BEND_Y, OUT_Z / 2) * Box(20, 10, OUT_Z + 4)
-    b += Pos(BEND_X, BEND_Y, OUT_Z - 2) * Box(CYC_SQ, CYC_SQ, 4)            # cycloidal mount plate
-    # spine tying the hub to the bend mount
-    b += Pos((HUB_X0 + BEND_X) / 2 - 2, BEND_Y / 2, 1) * Box(28, 10, 8)
+    # the bend stack now hangs from a plate at the cycloid INPUT face (top), with
+    # a spine down its +X side to the hub — see bend_mount()
+    b += bend_mount()
     # web down to the rotation-motor mount (-Z)
     # tie the hub to the TOP EDGE of the mount plate only — the motor envelope
     # (body behind the face; boss/shaft/pinion along the centre at z=-MESH_R)
@@ -103,9 +125,6 @@ def bracket():
     b += Pos(ROT_X + MOUNT_T / 2, 0, 2 - web_h / 2) * Box(MOUNT_T, 16, web_h)
     b += rot_mount()                                                        # NEMA17 face mount
     return b
-
-
-CYC_BODY_H = 23.3       # real cycloidal envelope height (base->output), from gen_vendor
 
 
 def ghosts():
