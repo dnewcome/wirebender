@@ -10,14 +10,17 @@ D-shaft, and a radial M3 set screw clamps onto that flat.
 import os
 from build123d import *
 from gears import spur_gear
-from base import FG_MODULE, FG_W           # lock module + face width to the base gear
+from base import FG_MODULE, FG_W, INSERT_D, INSERT_H   # lock to the base gear; reuse M3 insert spec
 
 PIN_TEETH = 12
 PIN_W = FG_W                               # 8.0 — same face width as the base gear
-SHAFT_D = 5.0                              # NEMA17 shaft
-FLAT_DEPTH = 0.5                           # D-shaft flat (5mm -> 4.5mm across the flat)
-HUB_OD, HUB_H = 12.0, 6.0                  # set-screw boss above the gear
-GRUB_D = 2.7                               # self-tapping M3 set screw (threads into plastic)
+SHAFT_D = 5.0                              # NEMA17 shaft (round Ø)
+SHAFT_FLAT = 4.5                           # across the D-flat
+BORE_CLEAR = 0.4                           # diametral slip-fit clearance (printed bore comes out tight)
+BORE_D = SHAFT_D + BORE_CLEAR              # 5.4 round bore
+FLAT_Y = (SHAFT_FLAT + BORE_CLEAR) / 2     # flat-face position from centre (clears the shaft flat)
+HUB_OD, HUB_H = 16.0, 8.0                  # boss big enough for a radial M3 heat-set insert
+SET_CLEAR_D = 3.2                          # M3 screw clearance from the insert to the shaft
 
 
 def pinion():
@@ -27,23 +30,40 @@ def pinion():
     part = gear + hub
     H = PIN_W + HUB_H
 
-    # D-bore: Ø5 through the whole part, with a flat at +Y for the shaft flat
-    bore = Cylinder(SHAFT_D / 2, H + 2, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    bore -= Pos(0, SHAFT_D / 2, -1) * Box(SHAFT_D + 2, 2 * FLAT_DEPTH, H + 4,
-                                          align=(Align.CENTER, Align.CENTER, Align.MIN))
+    # D-bore: round Ø BORE_D through the whole part, flat at +Y for the shaft flat
+    bore = Cylinder(BORE_D / 2, H + 2, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    bore -= Pos(0, FLAT_Y, -1) * Box(BORE_D + 4, (BORE_D / 2 - FLAT_Y) + 2, H + 4,
+                                     align=(Align.CENTER, Align.MIN, Align.MIN))
     part -= Pos(0, 0, -1) * bore
 
-    # radial M3 set screw through the hub wall, landing on the flat
-    part -= (Pos(0, HUB_OD / 2 + 1, PIN_W + HUB_H / 2) * Rot(90, 0, 0)
-             * Cylinder(GRUB_D / 2, HUB_OD / 2 + 1, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+    # radial set screw: M3 heat-set insert pocket from the OD, then clearance to the flat
+    ssz, yo = PIN_W + HUB_H / 2, HUB_OD / 2 + 1
+    part -= (Pos(0, yo, ssz) * Rot(90, 0, 0)
+             * Cylinder(INSERT_D / 2, INSERT_H + 1, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+    part -= (Pos(0, yo, ssz) * Rot(90, 0, 0)
+             * Cylinder(SET_CLEAR_D / 2, HUB_OD / 2 + 2, align=(Align.CENTER, Align.CENTER, Align.MIN)))
     return part
+
+
+def _watertight_export(part, path):
+    """Export, then repair the mesh. gggears' 12T undercut tessellates with a few
+    non-manifold faces (the 40T gear is fine); this keeps the undercut geometry but
+    makes the printable STL watertight."""
+    import trimesh
+    export_stl(part, path)
+    g = trimesh.load(path)
+    if not g.is_watertight:
+        g.merge_vertices(); trimesh.repair.fix_winding(g); trimesh.repair.fill_holes(g)
+        g.export(path)
+    return g.is_watertight
 
 
 if __name__ == "__main__":
     os.makedirs("build", exist_ok=True)
     p = pinion()
-    export_stl(p, "build/pinion.stl")
+    wt = _watertight_export(p, "build/pinion.stl")
+    print("  watertight:", wt)
     bb = p.bounding_box()
-    print(f"pinion {PIN_TEETH}T m{FG_MODULE} w{PIN_W}  bore Ø{SHAFT_D} (flat {FLAT_DEPTH})  "
-          f"hub Ø{HUB_OD}x{HUB_H}  set screw M3"
+    print(f"pinion {PIN_TEETH}T m{FG_MODULE} w{PIN_W}  bore Ø{BORE_D} (flat @{FLAT_Y:.2f})  "
+          f"hub Ø{HUB_OD}x{HUB_H}  set screw: M3 heat-set Ø{INSERT_D}x{INSERT_H}"
           f"  bbox {[round(v,1) for v in (bb.size.X, bb.size.Y, bb.size.Z)]}")
