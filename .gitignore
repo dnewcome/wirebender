@@ -10,3 +10,7 @@ build/
 # MuJoCo meshes + model — regenerate: cd sim && ../py/bin/python make_mjcf_v2.py
 sim/meshes/
 sim/wirebender*.xml
+
+# vendor cycloid geometry (Sweep Dynamics, paid) — not redistributed; rothead.py
+# falls back to a placeholder block if it's absent
+nema-17-cycloid-base.stl

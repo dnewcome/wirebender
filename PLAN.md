@@ -15,6 +15,45 @@ ordered; check them off as they land.
 - **Interference:** `sim/interference.py` checks self / table / body collisions
   (exact) and head clearance (approximate — see below).
 
+## Head — simpler 2-part redesign (2026-06-14)
+
+The cantilevered rotating head is being **simplified**. The current `cad/rothead.py`
+grew into a multi-feature bracket (pinch-clamp hub + rotation arm + bend spine,
+then a bolted 2-piece split). We're collapsing it to a cleaner set of parts.
+Dan is sketching the geometry by hand; this section is the design intent to build to.
+
+**Target: 2 parts.**
+
+1. **Main part** — one printed bracket that carries everything, with three features:
+   - **Slotted NEMA17 mount** (rotation motor) on one side. Radial slots so the
+     motor/pinion slides to set the pinion ↔ fixed-gear mesh (backlash). Carries
+     over from today's `rot_mount()` (slots already done, ±`ROT_SLOT`).
+   - **Slotted bending-head boss** on the *other* side. A boss/socket that the
+     cycloid-base part (below) mates into, with slots so the bend head's height
+     above the wire is adjustable (±`BEND_SLOT`). Replaces today's two slotted
+     tabs + yoke with a single boss.
+   - **Central circular boss with a set screw** — mounts the head onto the feed
+     tube. Replaces the pinch-slit clamp hub: a plain round bore (tube Ø) + a
+     radial set screw (heat-set insert + grub, like the pinion) clamps the tube.
+
+2. **Cycloid-base part** — a **boss built onto the cycloid plate**, roughly as
+   already prototyped (`cyclo_base()` import, oriented bearing-boss-down toward
+   the wire; the version with 2 heat-set threaded inserts). This boss slides into
+   the main part's bending-head boss and bolts through the height slots into the
+   inserts.
+
+**Carry over from the current code:** `_slot()` helper, the slotted `rot_mount()`,
+the `cyclo_base()` STL import (boss-down), the slot-travel constants.
+**Drop:** the pinch-clamp `hub()`, the rotation `bend_spine`/yoke/tabs, and the
+bolted 2-piece `rot_piece`/`bend_piece` split (`build/rothead_rot.stl`,
+`rothead_bend.stl`). The main part becomes a single body; the cycloid-base boss
+is the only other printed piece.
+
+**Open (Dan to pin down in the sketch):** the bending-head boss/socket profile
+(how the cycloid boss registers + slides), set-screw boss diameter/wall, and the
+exact insert spacing on the cycloid boss (today's slots assume `CYC_INS_Y=±14`,
+`CYC_INS_Z=12.5` on the base +X face — re-match once the sketch lands).
+
 ## Wire / bend modeling
 
 - [x] **Bend radius (filleted corners).** Bends now lay an arc of radius

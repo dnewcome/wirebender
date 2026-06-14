@@ -25,7 +25,7 @@ build/pinion.stl: cad/pinion.py cad/base.py cad/gears.py
 	$(PY) cad/pinion.py
 
 PARTS := build/base.stl build/rothead_assembly.stl build/bend_endcap.stl \
-         build/cyclo_body.stl build/feeder_body.stl
+         build/feeder_body.stl
 
 # ── MuJoCo model (parts -> wirebender.xml + meshes) ─────────────────
 sim/wirebender.xml: sim/make_mjcf.py $(PARTS)
@@ -35,6 +35,9 @@ model: sim/wirebender.xml          ## regenerate the MuJoCo model
 
 parts: build/base.stl              ## (re)build the separately-printed base parts (plate/uprights/gear)
 	@echo "  build/: base_plate.stl  upright_front.stl  upright_rear.stl  gear.stl  sleeve.stl"
+
+head: build/rothead_assembly.stl   ## (re)build the 2-piece head (rotation piece + cycloid/bend piece)
+	@echo "  build/: rothead_rot.stl (clamp+rotation motor)  rothead_bend.stl (slotted cycloid mount)"
 
 sim: sim/wirebender.xml view       ## build what changed, then open the viewer
 

@@ -43,8 +43,9 @@ BEND_Y = MANDREL_OFFSET             # bend axis offset so the wire is tangent
 OUT_Z = 8.0                         # cycloidal output face height above the wire
 CYC_BODY_H = 23.3                   # real cycloidal envelope height (output->input), from gen_vendor
 BEND_PLATE_Z = OUT_Z + CYC_BODY_H   # cycloid INPUT/motor face (top) — head hangs below it
-CYC_BOLT = 31.0                     # cycloid input bolt square (NEMA17 4xM3) — measured from the STL
-CYC_BOSS = 28.0                     # cycloid input boss Ø — measured from the STL
+CYC_BASE_T = 9.0                    # nema-17-cycloid-base.stl thickness (NEMA face <-> bearing boss)
+CYC_BASE_STL = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "nema-17-cycloid-base.stl")
 
 # ── rotation motor ──────────────────────────────────────────────────
 ROTMOT = (PANCAKE_D, CYC_SQ, CYC_SQ)   # pancake on -Z, axis ∥ X (L along X)
@@ -52,6 +53,13 @@ ROT_X = -14.0                          # motor front face (X); body extends -X, 
 MOUNT_T = 6.0                          # face-plate thickness (bolt through it into the motor)
 PILOT_CLEAR = 22.5                     # clears the Ø22 pilot boss; shaft passes through too
 M3_CLEAR = 3.4                         # NEMA17 face is tapped M3, so the plate gets clearance
+
+# ── 2-piece split + adjustment slots ────────────────────────────────
+ROT_SLOT = 2.0          # rotation NEMA mount: ±travel to set the pinion/fixed-gear mesh
+BEND_SLOT = 5.0         # cycloid mount: ±travel to set the bend-head height above the wire
+IFACE_INS_D, IFACE_INS_H = 4.6, 5.0    # M3 heat-set inserts joining piece 2 -> piece 1
+IFACE_X = -5.0                          # hub-top join pad (clear of the base edge -9 and hub end -2)
+CYC_INS_Y, CYC_INS_Z = 14.0, 12.5       # cycloid-base side inserts: ±Y (outside the hub), mid-Z
 
 # ── tube clamp hub ──────────────────────────────────────────────────
 HUB_OD = 18.0
@@ -67,6 +75,15 @@ def zcyl(d, z0, z1, x=0.0, y=0.0):
     return Pos(x, y, z0) * Cylinder(d / 2, z1 - z0, align=(Align.CENTER, Align.CENTER, Align.MIN))
 
 
+def _slot(d, travel, depth):
+    """Slot cutter centred at the origin: Ø d hole elongated ±travel along X, bored
+    along Z. Pos/Rot into place (Rot(0,90,0) -> bored along X, elongated along Z)."""
+    s = Box(2 * travel, d, depth)
+    s += Pos(travel, 0, 0) * Cylinder(d / 2, depth)
+    s += Pos(-travel, 0, 0) * Cylinder(d / 2, depth)
+    return s
+
+
 def hub():
     h = xcyl(HUB_OD, HUB_X0, HUB_X1)
     h -= xcyl(TUBE_D, HUB_X0 - 1, HUB_X1 + 1)
@@ -80,74 +97,96 @@ def rot_mount():
     motor's tapped face holes, and the shaft passes through to the pinion. Built
     in the motor's local frame (face at z=0, +Z toward the gear), then placed."""
     plate = Pos(0, 0, MOUNT_T / 2) * Box(NEMA + 2, NEMA + 2, MOUNT_T)
-    plate -= Pos(0, 0, -1) * Cylinder(PILOT_CLEAR / 2, MOUNT_T + 2,
-                                      align=(Align.CENTER, Align.CENTER, Align.MIN))
+    # slots run along local X (= the head's radial Z) so the motor slides ±ROT_SLOT
+    # to set the pinion/fixed-gear mesh
+    plate -= Pos(0, 0, MOUNT_T / 2) * _slot(PILOT_CLEAR, ROT_SLOT, MOUNT_T + 2)
     for sx in (NEMA_BOLT / 2, -NEMA_BOLT / 2):
         for sy in (NEMA_BOLT / 2, -NEMA_BOLT / 2):
-            plate -= Pos(sx, sy, -1) * Cylinder(M3_CLEAR / 2, MOUNT_T + 2,
-                                                align=(Align.CENTER, Align.CENTER, Align.MIN))
+            plate -= Pos(sx, sy, MOUNT_T / 2) * _slot(M3_CLEAR, ROT_SLOT, MOUNT_T + 2)
     return Pos(ROT_X, 0, -MESH_R) * Rot(0, 90, 0) * plate
 
 
-def bend_mount():
-    """Plate at the cycloid's INPUT (motor) face — the top of the hanging bend
-    stack. The pancake sandwiches this plate to the cycloid via the real 31mm
-    4xM3 pattern; the Ø28 input boss + shaft clear the central bore. A spine runs
-    down the +X side of the cycloid (clear of the 42mm body) to the tube hub."""
-    z0 = BEND_PLATE_Z
-    plate = Pos(BEND_X, BEND_Y, z0 + MOUNT_T / 2) * Box(CYC_SQ + 2, CYC_SQ + 2, MOUNT_T)
-    plate -= Pos(BEND_X, BEND_Y, z0 - 1) * Cylinder((CYC_BOSS + 1) / 2, MOUNT_T + 2,
-                                                    align=(Align.CENTER, Align.CENTER, Align.MIN))
-    for sx in (CYC_BOLT / 2, -CYC_BOLT / 2):
-        for sy in (CYC_BOLT / 2, -CYC_BOLT / 2):
-            plate -= Pos(BEND_X + sx, BEND_Y + sy, z0 - 1) * Cylinder(
-                M3_CLEAR / 2, MOUNT_T + 2, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    # spine down the +X side of the cycloid (clear of the 42mm body) to the hub
-    sx0 = BEND_X + CYC_SQ / 2 + 1                        # -8: just clear of the body (+X edge -9)
-    h = z0 + MOUNT_T + 4
-    spine = Pos(sx0 + 2.5, BEND_Y / 2, (z0 + MOUNT_T) / 2 - 2) * Box(5, 14, h)
-    return plate + spine
+def cyclo_base():
+    """The cycloid drive's integrated NEMA17 base (vendor nema-17-cycloid-base.stl),
+    oriented BEARING-BOSS-DOWN toward the wire — the pancake mounts on the NEMA face
+    (up), the Ø30 output boss faces the wire. This IS the bend-head mount (the whole
+    drive is integrated), not a printed plate. Output boss face at z=OUT_Z."""
+    if not os.path.exists(CYC_BASE_STL):                # vendor STL absent -> placeholder block
+        b = Pos(0, 0, CYC_BASE_T / 2) * Box(CYC_SQ, CYC_SQ, CYC_BASE_T)
+    else:
+        b = import_stl(CYC_BASE_STL)
+        c = b.bounding_box().center()
+        b = Pos(-c.X, -c.Y, 0) * b                      # centre on the output axis (XY)
+    return Pos(BEND_X, BEND_Y, OUT_Z + CYC_BASE_T) * Rot(180, 0, 0) * b
 
 
-def bracket():
-    """Rough printed bracket: hub + web up to the cycloidal mount + web down to the
-    rotation-motor mount. Detail (bolt patterns, mandrel support) comes next."""
+PAD_Z = HUB_OD / 2 + 3.5            # join-pad top face (hub top 9 + 3.5 pad)
+
+
+def rot_piece():
+    """Piece 1 (flat-print): full tube clamp + rotation arm + slotted NEMA mount +
+    a hub-top pad with 2 heat-set inserts that piece 2 bolts down onto."""
     b = hub()
-    # the bend stack now hangs from a plate at the cycloid INPUT face (top), with
-    # a spine down its +X side to the hub — see bend_mount()
-    b += bend_mount()
-    # web down to the rotation-motor mount (-Z)
-    # tie the hub to the TOP EDGE of the mount plate only — the motor envelope
-    # (body behind the face; boss/shaft/pinion along the centre at z=-MESH_R)
-    # fills the centre, so the old centreline spine collided with it.
-    plate_top = -MESH_R + (NEMA + 2) / 2                       # -16.85
+    # rotation web to the slotted mount plate (top-edge tie, clears the motor envelope)
+    plate_top = -MESH_R + (NEMA + 2) / 2
     web_h = 2 - (plate_top - 4)
     b += Pos(ROT_X + MOUNT_T / 2, 0, 2 - web_h / 2) * Box(MOUNT_T, 16, web_h)
-    b += rot_mount()                                                        # NEMA17 face mount
+    b += rot_mount()
+    # join pad on the hub top (between the base edge at -9 and the hub end at -2);
+    # overlaps into the hub (z 7..PAD_Z) so it fuses rather than just touching
+    b += Pos(IFACE_X, 0, (7 + PAD_Z) / 2) * Box(6, 16, PAD_Z - 7)
+    for ix in (IFACE_X - 3, IFACE_X + 3):               # 2 heat-set inserts, open at the pad top
+        b -= Pos(ix, 0, PAD_Z - IFACE_INS_H) * Cylinder(
+            IFACE_INS_D / 2, IFACE_INS_H + 0.1, align=(Align.CENTER, Align.CENTER, Align.MIN))
     return b
+
+
+def bend_piece():
+    """Piece 2 (flat-print): bolts down onto piece 1's hub-top pad, then reaches to
+    the cycloid base's +X face as two slotted tabs (at y=±CYC_INS_Y, outside the
+    hub). Vertical slots (±BEND_SLOT) bolt into 2 heat-set inserts on the base to
+    set the head height. The base inserts go at (x=-9, y=±CYC_INS_Y, z=CYC_INS_Z)."""
+    # foot on the join pad + clearance for the two join bolts
+    b = Pos(IFACE_X, 0, PAD_Z + 2) * Box(6, 16, 4)                  # z PAD_Z..PAD_Z+4
+    for ix in (IFACE_X - 3, IFACE_X + 3):
+        b -= zcyl(M3_CLEAR, PAD_Z - 0.5, PAD_Z + 5, x=ix, y=0)
+    # spreader from the foot out to the two tabs (above the hub, +X of the base body)
+    b += Pos(-5.5, 0, 15) * Box(7, 2 * CYC_INS_Y + 8, 4)           # x -9..-2, z 13..17
+    # two slotted tabs against the base +X face (x=-9), clearing the hub at y=±CYC_INS_Y
+    base_x = BEND_X + CYC_SQ / 2                                    # -9
+    for sy in (CYC_INS_Y, -CYC_INS_Y):
+        b += Pos(base_x + 2, sy, 12) * Box(4, 8, 12)               # tab x -9..-5, z 6..18
+        b -= (Pos(base_x + 2, sy, CYC_INS_Z) * Rot(0, 90, 0)
+              * _slot(M3_CLEAR, BEND_SLOT, 8))                      # vertical slot, bolt -X to base
+    return b
+
+
+def build_head():
+    return Compound(children=[rot_piece(), bend_piece()])
 
 
 def ghosts():
     # the real cycloidal body + bend die are placed in the sim (make_mjcf); here just
     # the pancake on the cycloidal base + the rotation pancake/pinion
     g = {}
-    g["bend_pancake"] = Pos(BEND_X, BEND_Y, OUT_Z + CYC_BODY_H) * Rot(180, 0, 0) * nema17(depth=PANCAKE_D, shaft_len=18)
+    g["cyclo_base"] = cyclo_base()
+    # pancake mounts on the base's NEMA face (top), shaft down into the cycloid
+    g["bend_pancake"] = Pos(BEND_X, BEND_Y, OUT_Z + CYC_BASE_T) * Rot(180, 0, 0) * nema17(depth=PANCAKE_D, shaft_len=18)
     g["rot_pancake"] = Pos(ROT_X, 0, -MESH_R) * Rot(0, 90, 0) * nema17(depth=PANCAKE_D, shaft_len=14)
     g["pinion"] = Pos(2, 0, -MESH_R) * Rot(0, 90, 0) * pinion()   # real printable part (set screw + D-bore)
     return g
 
 
-def build_head():
-    return bracket()
-
-
 if __name__ == "__main__":
     os.makedirs("build", exist_ok=True)
-    head = build_head()
-    export_stl(head, "build/rothead.stl")
+    rot, bend = rot_piece(), bend_piece()
+    export_stl(rot, "build/rothead_rot.stl")       # piece 1: clamp + rotation motor (flat print)
+    export_stl(bend, "build/rothead_bend.stl")     # piece 2: cycloid mount, slotted (flat print)
+    head = Compound(children=[rot, bend])
+    export_stl(head, "build/rothead.stl")          # both pieces (sim/printed head)
     export_step(head, "build/rothead.step")
-    asm = Compound(children=[head] + list(ghosts().values()))
+    asm = Compound(children=[rot, bend] + list(ghosts().values()))
     export_stl(asm, "build/rothead_assembly.stl")
     bb = asm.bounding_box()
-    print("assembly bbox", [round(v, 1) for v in (bb.size.X, bb.size.Y, bb.size.Z)],
-          "swing R ~", round(max(abs(bb.min.Z), abs(bb.max.Z)), 1))
+    print("rot + bend pieces; assembly bbox",
+          [round(v, 1) for v in (bb.size.X, bb.size.Y, bb.size.Z)])
