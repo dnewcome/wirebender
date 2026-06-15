@@ -19,6 +19,8 @@ build/cyclo_body.stl: cad/gen_vendor.py
 	$(PY) cad/gen_vendor.py            # slow; needs the purchased Sweep Dynamics STEP
 build/feeder_body.stl: cad/gen_feeder.py extruder.glb
 	$(PY) cad/gen_feeder.py
+build/base_proto.stl: cad/base_proto.py cad/base.py
+	$(PY) cad/base_proto.py
 build/sleeve.stl: cad/sleeve.py cad/base.py
 	$(PY) cad/sleeve.py
 build/pinion.stl: cad/pinion.py cad/base.py cad/gears.py
@@ -38,6 +40,8 @@ parts: build/base.stl              ## (re)build the separately-printed base part
 
 head: build/rothead_assembly.stl   ## (re)build the 2-piece head (rotation piece + cycloid/bend piece)
 	@echo "  build/: rothead_rot.stl (clamp+rotation motor)  rothead_bend.stl (slotted cycloid mount)"
+
+proto: build/base_proto.stl        ## short/narrow front base section for fast gear+upright prototyping
 
 sim: sim/wirebender.xml view       ## build what changed, then open the viewer
 
