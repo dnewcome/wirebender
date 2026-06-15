@@ -1,8 +1,16 @@
 """make_mjcf.py — MuJoCo model for the build123d cantilever architecture.
 
-Assembles build/base.stl (static) + build/rothead.stl (rotates about the wire
-axis = Axis 2) + the passive feed tube. Mesh frames are in mm (scale 0.001).
-Base frame: wire axis at z=35mm. Head frame: wire axis at the mesh origin.
+Assembles the machine from the PRINTABLE part STLs (what you actually print) plus
+clearly-separated REFERENCE meshes for the purchased parts:
+
+    printable:  base.stl (deck+uprights+gear+spacer), rothead.stl (head bracket),
+                pinion.stl (rotation pinion), bend_endcap.stl (bend die + pin)
+    reference:  head_refs.stl (NEMA motor bodies + cycloid drive — bought, not printed)
+
+The head rotates about the wire axis (Axis 2 = tube_rot); the pinion is a child of
+the head with its own spin joint (Axis 2b) so the gear mesh with the fixed gear is
+visible; the bend die spins about the bend axis (Axis 3 = bend). Motor INTERNALS
+aren't modeled — only their bodies are shown. Mesh frames are mm (scale 0.001).
 
 Run:  cd sim && ../py/bin/python make_mjcf.py   ->  sim/wirebender.xml
 """
@@ -12,21 +20,22 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 MESH = ROOT / "sim" / "meshes"
 MESH.mkdir(parents=True, exist_ok=True)
-for src, dst in [("build/base.stl", "base.stl"),
-                 ("build/rothead_assembly.stl", "head.stl"),
-                 ("build/bend_endcap.stl", "benddie.stl"),
-                 ("build/feeder_body.stl", "feeder.stl")]:
+for src, dst in [("build/base.stl", "base.stl"),              # printable
+                 ("build/rothead.stl", "head.stl"),           # printable (rot+bend pieces)
+                 ("build/pinion.stl", "pinion.stl"),          # printable (animated, meshes the gear)
+                 ("build/bend_endcap.stl", "benddie.stl"),    # bend die + pin
+                 ("build/head_refs.stl", "head_refs.stl"),    # REFERENCE: motors + cyclo (purchased)
+                 ("build/feeder_body.stl", "feeder.stl")]:    # reference primitive
     shutil.copy(ROOT / src, MESH / dst)
 
-from machine import WIRE_AXIS_WORLD_Z as ZAXIS, BASE_WORLD_Z as BASE_Z, FEEDER_X_WORLD as FEEDER_X, TUBE_D
-# ZAXIS  = wire-axis world height (deck top AXIS_Z + plate on floor)
-# BASE_Z = deck bottom on the floor
+from machine import (WIRE_AXIS_WORLD_Z as ZAXIS, BASE_WORLD_Z as BASE_Z,
+                     FEEDER_X_WORLD as FEEDER_X, TUBE_D, MESH_R, PINION_MOUNT_X)
 # bend axis in the head frame (mm, from rothead.py): BEND_X, BEND_Y, output height.
-# The cycloid drive body is now part of head.stl (its real integrated base ghost).
 BX, BY, BZ = -0.030, 0.0028, 0.008
-FEEDER_Z = ZAXIS                  # output (mesh mid-Z) on the wire axis; the feeder model is now
-                                  # 70mm tall (output 35mm above its -Z face), so the mounting face
-                                  # seats flat on the base top.
+FEEDER_Z = ZAXIS                  # feeder output (mesh mid-Z) on the wire axis
+# pinion body: head-frame Pos(PINION_MOUNT_X, 0, -MESH_R) * Rot(0,90,0) — the Y-rotation
+# (quat 0.70711 0 0.70711 0) lays the pinion's native +Z gear axis along the wire axis X.
+PIN_X, PIN_Z = PINION_MOUNT_X / 1000.0, -MESH_R / 1000.0
 
 XML = f"""<mujoco model="wirebender">
   <compiler angle="radian" meshdir="meshes"/>
@@ -38,7 +47,9 @@ XML = f"""<mujoco model="wirebender">
   <asset>
     <mesh name="base" file="base.stl" scale="0.001 0.001 0.001"/>
     <mesh name="head" file="head.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="pinion" file="pinion.stl" scale="0.001 0.001 0.001"/>
     <mesh name="benddie" file="benddie.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="head_refs" file="head_refs.stl" scale="0.001 0.001 0.001"/>
     <mesh name="feeder" file="feeder.stl" scale="0.001 0.001 0.001"/>
   </asset>
   <worldbody>
@@ -53,7 +64,15 @@ XML = f"""<mujoco model="wirebender">
     <body name="head" pos="0 0 {ZAXIS}">
       <joint name="tube_rot" type="hinge" axis="1 0 0" range="-1.6 1.6"/>
       <geom type="mesh" mesh="head" pos="0 0 0" rgba="0.86 0.6 0.2 1" contype="0" conaffinity="0"/>
+      <!-- purchased parts: shown for context (motors + cyclo), not animated internally -->
+      <geom type="mesh" mesh="head_refs" pos="0 0 0" rgba="0.42 0.46 0.54 1" contype="0" conaffinity="0"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="2e-4 2e-4 2e-4"/>
+      <!-- Axis 2b: rotation pinion, spins as the head rolls -> meshes the fixed gear -->
+      <body name="pinion" pos="{PIN_X} 0 {PIN_Z}" quat="0.70711 0 0.70711 0">
+        <joint name="pinion_spin" type="hinge" axis="0 0 1"/>
+        <geom type="mesh" mesh="pinion" pos="0 0 0" rgba="0.80 0.82 0.30 1" contype="0" conaffinity="0"/>
+        <inertial pos="0 0 0" mass="0.02" diaginertia="2e-6 2e-6 2e-6"/>
+      </body>
       <!-- Axis 3: bend die (cycloidal output + pin) about the bend axis -->
       <body name="benddie" pos="{BX} {BY} {BZ}">
         <joint name="bend" type="hinge" axis="0 0 1" range="-3.2 3.2"/>

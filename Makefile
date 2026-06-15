@@ -11,8 +11,10 @@ PY := py/bin/python
 # ── CAD parts (build123d -> build/*.stl) ────────────────────────────
 build/base.stl: cad/base.py cad/gears.py
 	$(PY) cad/base.py
-build/rothead_assembly.stl: cad/rothead.py cad/parts.py cad/gears.py cad/pinion.py cad/base.py
+build/rothead.stl: cad/rothead.py cad/parts.py cad/gears.py cad/pinion.py cad/base.py
 	$(PY) cad/rothead.py
+build/head_refs.stl: cad/head_refs.py cad/rothead.py cad/parts.py
+	$(PY) cad/head_refs.py            # REFERENCE: motors + cyclo (purchased, not printed)
 build/bend_endcap.stl: cad/bend_endcap.py
 	$(PY) cad/bend_endcap.py
 build/cyclo_body.stl: cad/gen_vendor.py
@@ -28,8 +30,9 @@ build/sleeve.stl: cad/sleeve.py cad/base.py
 build/pinion.stl: cad/pinion.py cad/base.py cad/gears.py
 	$(PY) cad/pinion.py
 
-PARTS := build/base.stl build/rothead_assembly.stl build/bend_endcap.stl \
-         build/feeder_body.stl
+# printable parts the sim assembles + reference meshes (motors/cyclo, feeder)
+PARTS := build/base.stl build/rothead.stl build/pinion.stl build/bend_endcap.stl \
+         build/head_refs.stl build/feeder_body.stl
 
 # ── MuJoCo model (parts -> wirebender.xml + meshes) ─────────────────
 sim/wirebender.xml: sim/make_mjcf.py $(PARTS)
@@ -40,8 +43,8 @@ model: sim/wirebender.xml          ## regenerate the MuJoCo model
 parts: build/base.stl              ## (re)build the separately-printed base parts (plate/uprights/gear)
 	@echo "  build/: base_plate.stl  upright_front.stl  upright_rear.stl  gear.stl  sleeve.stl"
 
-head: build/rothead_assembly.stl   ## (re)build the 2-piece head (rotation piece + cycloid/bend piece)
-	@echo "  build/: rothead_rot.stl (clamp+rotation motor)  rothead_bend.stl (slotted cycloid mount)"
+head: build/rothead.stl build/head_refs.stl  ## (re)build the printable head pieces + reference motor/cyclo meshes
+	@echo "  printable: rothead_rot.stl  rothead_bend.stl  pinion.stl    reference: head_refs.stl (motors+cyclo)"
 
 proto: build/base_proto.stl        ## short/narrow front base section for fast gear+upright prototyping
 

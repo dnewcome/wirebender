@@ -18,7 +18,7 @@ from pathlib import Path
 import numpy as np
 import mujoco
 from bend_model import EXAMPLES, BEND_RADIUS
-from machine import WIRE_AXIS_WORLD_MM
+from machine import WIRE_AXIS_WORLD_MM, PINION_RATIO
 
 HERE = Path(__file__).resolve().parent
 XML = HERE / "wirebender.xml"
@@ -129,6 +129,16 @@ def _set_joint(model, data, name, val_rad):
     data.qpos[model.jnt_qposadr[jid]] = val_rad
 
 
+def _set_machine(model, data, tube_deg, bend_deg):
+    """Set the two driven axes + the pinion (rolls on the fixed gear with the head)."""
+    _set_joint(model, data, "tube_rot", math.radians(tube_deg))
+    _set_joint(model, data, "bend", math.radians(bend_deg))
+    pin = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "pinion_spin")
+    if pin >= 0:
+        data.qpos[model.jnt_qposadr[pin]] = PINION_RATIO * math.radians(tube_deg)
+    mujoco.mj_forward(model, data)
+
+
 def _rgba(s):
     return np.array([float(x) for x in s.split()], dtype=np.float32)
 
@@ -190,9 +200,7 @@ def view_live(name, program, springback=0.0, fps=20, fault_pt=None, fault_msg=No
             for tube_deg, bend_deg, W in frames:
                 if not viewer.is_running():
                     break
-                _set_joint(model, data, "tube_rot", math.radians(tube_deg))
-                _set_joint(model, data, "bend", math.radians(bend_deg))
-                mujoco.mj_forward(model, data)
+                _set_machine(model, data, tube_deg, bend_deg)
                 _draw_wire_scn(viewer.user_scn, W)
                 viewer.sync()
                 time.sleep(1.0 / fps)
@@ -232,9 +240,7 @@ def render_gif(name, program, springback=0.0, fault_pt=None, fault_msg=None):
         tmp.write_text(_inject(base_xml, W, fault_pt=fp))
         model = mujoco.MjModel.from_xml_path(str(tmp))   # geom count changes as the wire grows
         data = mujoco.MjData(model)
-        _set_joint(model, data, "tube_rot", math.radians(tube_deg))
-        _set_joint(model, data, "bend", math.radians(bend_deg))
-        mujoco.mj_forward(model, data)
+        _set_machine(model, data, tube_deg, bend_deg)
         renderer = mujoco.Renderer(model, 640, 900)      # fresh per frame (model differs)
         renderer.update_scene(data, cam)
         imgs.append(Image.fromarray(renderer.render().copy()))

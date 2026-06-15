@@ -187,3 +187,12 @@ straight between bends, bend-radius limit) — reuse `interference.py` per path.
 - Keep the existing gear reduction (torque + resolution); don't direct-drive.
 - Sim is kinematic (collisions off) by design; `interference.py` does collision
   checks offline against the formed-wire geometry instead.
+- **Manufacturability: the sim assembles the PRINTABLE part STLs** (base, rothead
+  rot+bend, pinion, bend die) — what you see is what you print. Purchased parts
+  (NEMA motors, cycloid drive) are shown as a clearly-separated REFERENCE mesh
+  (`build/head_refs.stl`, from `cad/head_refs.py`, placements imported from
+  `rothead.ghosts()`), never fused into a printable STL. CAD print scripts stay
+  clean (one printable part each). The rotation pinion is its own animated body
+  meshing the fixed gear (spin = head roll × `machine.PINION_RATIO`); motor
+  bodies are shown but their internals aren't animated (torque/efficiency is a
+  later numerical study, not the visualization).

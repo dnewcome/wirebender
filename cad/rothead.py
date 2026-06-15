@@ -165,15 +165,20 @@ def build_head():
     return Compound(children=[rot_piece(), bend_piece()])
 
 
-def ghosts():
-    # the real cycloidal body + bend die are placed in the sim (make_mjcf); here just
-    # the pancake on the cycloidal base + the rotation pancake/pinion
-    g = {}
-    g["cyclo_base"] = cyclo_base()
-    # pancake mounts on the base's NEMA face (top), shaft down into the cycloid
-    g["bend_pancake"] = Pos(BEND_X, BEND_Y, OUT_Z + CYC_BASE_T) * Rot(180, 0, 0) * nema17(depth=PANCAKE_D, shaft_len=18)
-    g["rot_pancake"] = Pos(ROT_X, 0, -MESH_R) * Rot(0, 90, 0) * nema17(depth=PANCAKE_D, shaft_len=14)
-    g["pinion"] = Pos(2, 0, -MESH_R) * Rot(0, 90, 0) * pinion()   # real printable part (set screw + D-bore)
+PINION_MOUNT_X = 2.0       # pinion centre X in the head frame (on the rotation-motor shaft)
+
+
+def ghosts(motors=True, pinion_part=True):
+    """Reference placements around the head. The sim no longer bakes the motors or
+    pinion into head.stl (the pinion is animated as its own meshing body, the motor
+    internals aren't visualized) — pass motors/pinion_part=False to omit them."""
+    g = {"cyclo_base": cyclo_base()}                          # structural bend-head body
+    if motors:
+        # pancake mounts on the base's NEMA face (top), shaft down into the cycloid
+        g["bend_pancake"] = Pos(BEND_X, BEND_Y, OUT_Z + CYC_BASE_T) * Rot(180, 0, 0) * nema17(depth=PANCAKE_D, shaft_len=18)
+        g["rot_pancake"] = Pos(ROT_X, 0, -MESH_R) * Rot(0, 90, 0) * nema17(depth=PANCAKE_D, shaft_len=14)
+    if pinion_part:
+        g["pinion"] = Pos(PINION_MOUNT_X, 0, -MESH_R) * Rot(0, 90, 0) * pinion()
     return g
 
 
@@ -183,10 +188,11 @@ if __name__ == "__main__":
     export_stl(rot, "build/rothead_rot.stl")       # piece 1: clamp + rotation motor (flat print)
     export_stl(bend, "build/rothead_bend.stl")     # piece 2: cycloid mount, slotted (flat print)
     head = Compound(children=[rot, bend])
-    export_stl(head, "build/rothead.stl")          # both pieces (sim/printed head)
+    export_stl(head, "build/rothead.stl")          # both printable pieces (the sim head bracket)
     export_step(head, "build/rothead.step")
-    asm = Compound(children=[rot, bend] + list(ghosts().values()))
-    export_stl(asm, "build/rothead_assembly.stl")
-    bb = asm.bounding_box()
-    print("rot + bend pieces; assembly bbox",
-          [round(v, 1) for v in (bb.size.X, bb.size.Y, bb.size.Z)])
+    # The sim assembles printable STLs individually: rothead.stl (this), pinion.stl,
+    # base.stl, the bend die. Purchased parts (motors + cyclo) are exported as
+    # REFERENCE geometry by cad/head_refs.py — never fused into a printable STL here.
+    bb = head.bounding_box()
+    print("printable head: rothead_rot.stl + rothead_bend.stl (rothead.stl bbox",
+          [round(v, 1) for v in (bb.size.X, bb.size.Y, bb.size.Z)], ")")

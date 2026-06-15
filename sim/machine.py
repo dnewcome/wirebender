@@ -36,6 +36,16 @@ PIN_D = 4.0                   # bending-pin Ø                      (bend_endcap
 PIN_SWEEP_R = 13.0            # pin-centre radius from bend axis   (bend_endcap.py PIN_R)
 DIE_TRAVEL_DEG = 270.0        # usable cycloid output rotation (Axis 3)
 
+# ── rotation drive: head pinion meshing the fixed gear (cad/base.py, rothead.py) ──
+FIXED_GEAR_TEETH = 40         # base.py FG_TEETH (the fixed gear on the deck)
+PINION_TEETH = 12             # rothead.py PIN_TEETH (the head's rotation pinion)
+GEAR_MODULE = 1.5             # base.py FG_MODULE
+MESH_R = (FIXED_GEAR_TEETH + PINION_TEETH) * GEAR_MODULE / 2   # 39 mm, pinion-centre radius
+PINION_MOUNT_X = 2.0          # pinion-centre X in the head frame (rothead.py PINION_MOUNT_X)
+# pinion spin RELATIVE to the head as the head rolls (planet on a fixed sun):
+# the head rolls by θ -> pinion spins θ·(N_fixed/N_pinion) about its own axis.
+PINION_RATIO = FIXED_GEAR_TEETH / PINION_TEETH                 # 3.333
+
 # ── stock ───────────────────────────────────────────────────────────────────
 WIRE_D = 1.63                 # default stock Ø (14 ga; 16 ga ≈ 1.29)
 

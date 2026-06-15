@@ -43,9 +43,11 @@ def main(manual=False):
         return
     rot = model.actuator("rot").id
     bend = model.actuator("bend").id
+    qtube = model.jnt_qposadr[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "tube_rot")]
+    qpin = model.jnt_qposadr[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "pinion_spin")]
     rot_amp, bend_amp = _amplitudes(model)
     print(f"sweeping: head roll ±{math.degrees(rot_amp):.0f}°, bend die ±{math.degrees(bend_amp):.0f}° "
-          f"(270° travel) — interference-free")
+          f"(270° travel) — interference-free; pinion meshes the fixed gear")
     with mujoco.viewer.launch_passive(model, data) as viewer:
         while viewer.is_running():
             step_start = time.time()
@@ -53,6 +55,9 @@ def main(manual=False):
             data.ctrl[rot] = rot_amp * math.sin(2 * math.pi * ROT_HZ * t)
             data.ctrl[bend] = bend_amp * math.sin(2 * math.pi * BEND_HZ * t)
             mujoco.mj_step(model, data)
+            # gear mesh: pinion rolls on the fixed gear as the head turns (kinematic display)
+            data.qpos[qpin] = machine.PINION_RATIO * data.qpos[qtube]
+            mujoco.mj_forward(model, data)
             viewer.sync()
             dt = model.opt.timestep - (time.time() - step_start)
             if dt > 0:

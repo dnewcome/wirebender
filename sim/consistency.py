@@ -27,6 +27,12 @@ CHECKS = [
     ("mandrel Ø (MANDREL_D)",                M.MANDREL_D,           rothead.MANDREL_D),
     ("pin Ø (PIN_D)",                        M.PIN_D,               bend_endcap.PIN_D),
     ("pin sweep radius (PIN_SWEEP_R=PIN_R)", M.PIN_SWEEP_R,         bend_endcap.PIN_R),
+    ("fixed gear teeth (base)",              M.FIXED_GEAR_TEETH,    base.FG_TEETH),
+    ("fixed gear teeth (rothead)",           M.FIXED_GEAR_TEETH,    rothead.FG_TEETH),
+    ("pinion teeth (PIN_TEETH)",             M.PINION_TEETH,        rothead.PIN_TEETH),
+    ("gear module (FG_MODULE)",              M.GEAR_MODULE,         base.FG_MODULE),
+    ("gear mesh radius (MESH_R)",            M.MESH_R,              rothead.MESH_R),
+    ("pinion mount X (PINION_MOUNT_X)",      M.PINION_MOUNT_X,      rothead.PINION_MOUNT_X),
 ]
 
 
