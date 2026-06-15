@@ -559,14 +559,15 @@ def main():
         tag = f" piece {j+1}" if len(paths) > 1 else ""
         print(f"#{tag}: {len(P)} pts -> {nb} bends, {total:.1f} mm wire, fit {err:.2f} mm")
         if args.check:
-            try:
-                import interference as it
-                r = it.check(prog)
-                print(f"#  collision: {'OK' if r['ok'] else 'FAIL'}  "
-                      f"(self {r['self_min']:.1f} mm, machine {r['machine_min']:.1f} mm)")
-            except ImportError:
-                print("#  collision: skipped (interference checker was retired with the "
-                      "old-architecture sim; re-port it to the build123d parts to re-enable)")
+            import interference as it
+            r = it.check(prog, springback=args.springback)
+            errs = sum(f["severity"] == "error" for f in r["findings"])
+            warns = len(r["findings"]) - errs
+            print(f"#  rules: {'OK' if r['ok'] else 'FAIL'}  "
+                  f"(r={r['radius']:.1f}mm, {errs} error(s), {warns} warning(s))")
+            for f in r["findings"]:
+                mark = "ERROR" if f["severity"] == "error" else "warn "
+                print(f"#    {mark} bend {f['bend']}: [{f['rule']}] {f['detail']}")
 
     gcode = to_gcode(programs, springback=args.springback,
                      feed_rate=args.feed_rate, name=src_name)

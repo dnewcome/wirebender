@@ -73,13 +73,26 @@ exact insert spacing on the cycloid boss (today's slots assume `CYC_INS_Y=±14`,
 
 ## Interference / collision
 
-- [ ] **Accurate head-clearance check.** Bend radius is now modeled, but the
-  *bend point* `B` (and mandrel centre) is still placed roughly relative to the
-  real head mesh — the wire bends around the motor shaft into the head's rear
-  cutaway, which our `B = (6.35, 0, 5.5)` doesn't yet match. So `interference.py`
-  still only flags wire *re-entering* the head from far off (`BEND_ZONE = 32`).
-  To finish: place `B`/mandrel at the real shoe location, then shrink `BEND_ZONE`
-  and trust the mesh signed-distance check near the head.
+- [x] **Manufacturability rule-checker** (`sim/interference.py`, rebuilt 2026-06-15).
+  Flag-only checker that walks a program (same kinematics as `bend_model`) and
+  reports per-bend violations of the single-pin bend-cell limits:
+  `travel` (bend cmd > `DIE_TRAVEL_DEG`=270° die range, exact), `radius` + `min_straight`
+  (inter-bend straight < pin grab / setback, exact — fixed mandrel radius
+  `BEND_RADIUS = mandrel_r + wire_r`), `pin_part` (pin sweep strikes the formed
+  part, approx), `pin_tube` (wrap > `MAX_WRAP_DEG` swings the pin toward the feed
+  tube, calibratable), `part_head` (formed part swings back into the head, approx).
+  Wired into `slicer.py --check`; CLI `interference.py <example|part.gcode>` /
+  `--caps`; `make rules`. Verified: square/staple/chair pass, tight `coil` flags
+  pin_part + min_straight, 300° flags travel.
+- [ ] **Calibrate the clearance constants** against the real head once the head
+  redesign lands: `MAX_WRAP_DEG` (180° placeholder — the angle past which the pin
+  returns toward the tube), `MIN_GRAB`, `PIN_SWEEP_R`, the `HEAD_BACK_REACH`/
+  `HEAD_RADIUS` keep-out. The current mesh-level pin↔tube interference of the
+  as-built CAD is measured separately by `check_pin.py` (the bend die is mounted
+  ~8.5mm off the wire axis — see that tool); fold its result in here once fixed.
+- [ ] **Upgrade `part_head` to the real head mesh.** Today it's a parametric
+  keep-out box behind the bend point; place the formed part in the machine frame
+  and run a signed-distance check against the actual head STL (like `check_pin`).
 - [ ] **Reachability / envelope check.** Beyond collisions: does a program stay
   within axis travel limits (feed length, tube-rotation range)?
 - [ ] **Wire-vs-already-formed-part as the part grows** is handled; revisit once

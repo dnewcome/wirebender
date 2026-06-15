@@ -67,6 +67,9 @@ run: sim/wirebender.xml            ## run a sliced part in the sim (IN=part.gcod
 check-pin: sim/wirebender.xml      ## track bend-pin position + clearance to the feed tube over the axis range
 	cd sim && MUJOCO_GL=osmesa ../$(PY) check_pin.py
 
+rules:                             ## check a program against the bend-cell limits (IN=example|part.gcode; or --caps)
+	cd sim && ../$(PY) interference.py $(or $(IN),--caps)
+
 sleeve: build/sleeve.stl           ## printed 1/4"-tube -> 608-bearing adapter (print x2)
 
 pinion: build/pinion.stl           ## stepper pinion (12T, 5mm D-bore + M3 set screw)
