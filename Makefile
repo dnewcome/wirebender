@@ -49,8 +49,8 @@ assembly: build/assembly.step      ## full machine as one build123d assembly (bu
 
 sim: sim/wirebender.xml view       ## build what changed, then open the viewer
 
-view:                              ## open the MuJoCo viewer (drag rot/bend sliders)
-	cd sim && DISPLAY=:0 ../$(PY) view.py
+view:                              ## open the MuJoCo viewer (head auto-rotates; add ARGS=--manual to drag sliders)
+	cd sim && DISPLAY=:0 ../$(PY) view.py $(ARGS)
 
 anim: sim/wirebender.xml           ## render a bend animation to a GIF (NAME=staple|square|chair|coil)
 	cd sim && MUJOCO_GL=osmesa ../$(PY) animate_bend.py $(or $(NAME),staple)
@@ -63,6 +63,9 @@ slice:                             ## model -> G-code (IN=model.svg/.stl/example
 
 run: sim/wirebender.xml            ## run a sliced part in the sim (IN=part.gcode or a model/example)
 	cd sim && MUJOCO_GL=osmesa ../$(PY) animate_bend.py $(IN)
+
+check-pin: sim/wirebender.xml      ## track bend-pin position + clearance to the feed tube over the axis range
+	cd sim && MUJOCO_GL=osmesa ../$(PY) check_pin.py
 
 sleeve: build/sleeve.stl           ## printed 1/4"-tube -> 608-bearing adapter (print x2)
 
