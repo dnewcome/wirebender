@@ -30,6 +30,7 @@ CYCLO_H = 25.9          # cycloidal body depth; output face on one end
 FG_TEETH, FG_MODULE, FG_W, PIN_TEETH = 40, 1.5, 8.0, 12
 MESH_R = (FG_TEETH + PIN_TEETH) * FG_MODULE / 2            # 39
 TUBE_D = 8.0
+TUBE_CLEAR = 0.4        # slip fit so the feed tube slides into the bore (set screw clamps it)
 
 # ── bend actuator (pancake + micro-cycloidal) ───────────────────────
 CYC_SQ = 42.0                       # 42x42 NEMA17 / cycloidal footprint
@@ -96,7 +97,7 @@ def _slot(d, travel, depth):
 def hub():
     """Short tube-clamp boss with a radial M3 heat-set set screw (no pinch slit)."""
     h = xcyl(HUB_OD, HUB_X0, HUB_X1)                       # boss along the tube
-    h -= xcyl(TUBE_D, HUB_X0 - 1, HUB_X1 + 1)              # tube bore
+    h -= xcyl(TUBE_D + TUBE_CLEAR, HUB_X0 - 1, HUB_X1 + 1)  # tube bore (slip fit)
     xc = (HUB_X0 + HUB_X1) / 2
     # +Y radial set screw: one Ø IFACE_INS_D hole for the M3 heat-set insert that
     # penetrates a couple mm INTO the bore (not tangent to it) so the seated grub
@@ -152,6 +153,9 @@ def rot_piece():
     for ix in (IFACE_X - 3, IFACE_X + 3):               # 2 heat-set inserts, open at the pad top
         b -= Pos(ix, 0, PAD_Z - IFACE_INS_H) * Cylinder(
             IFACE_INS_D / 2, IFACE_INS_H + 0.1, align=(Align.CENTER, Align.CENTER, Align.MIN))
+    # re-cut the tube bore AFTER the web/pad are added, so nothing blocks the tube
+    # (the rotation web overlaps the bore region) — keep it clear through the web.
+    b -= xcyl(TUBE_D + TUBE_CLEAR, ROT_X - MOUNT_T / 2 - 1, HUB_X1 + 1)
     return b
 
 
