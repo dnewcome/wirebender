@@ -21,6 +21,8 @@ build/feeder_body.stl: cad/gen_feeder.py extruder.glb
 	$(PY) cad/gen_feeder.py
 build/base_proto.stl: cad/base_proto.py cad/base.py
 	$(PY) cad/base_proto.py
+build/assembly.step: cad/assembly.py cad/base.py cad/rothead.py build/feeder_body.stl
+	$(PY) cad/assembly.py
 build/sleeve.stl: cad/sleeve.py cad/base.py
 	$(PY) cad/sleeve.py
 build/pinion.stl: cad/pinion.py cad/base.py cad/gears.py
@@ -42,6 +44,8 @@ head: build/rothead_assembly.stl   ## (re)build the 2-piece head (rotation piece
 	@echo "  build/: rothead_rot.stl (clamp+rotation motor)  rothead_bend.stl (slotted cycloid mount)"
 
 proto: build/base_proto.stl        ## short/narrow front base section for fast gear+upright prototyping
+
+assembly: build/assembly.step      ## full machine as one build123d assembly (build/assembly.step + .stl)
 
 sim: sim/wirebender.xml view       ## build what changed, then open the viewer
 

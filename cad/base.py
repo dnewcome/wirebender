@@ -18,11 +18,10 @@ from build123d import *
 from gears import spur_gear
 
 # ── wire axis / feed tube ───────────────────────────────────────────
-AXIS_Z = 15.0          # wire axis above the base top; = 21mm above the deck (6mm plate).
-                       # Lowered so the feeder sits flat on the base (its wire output is
-                       # ~15mm above its mounting face) and the feed tube lines up with it.
-                       # The Ø63 fixed gear dips well below the base -> hangs off the
-                       # front overhang (machine is cantilevered / on a stand).
+AXIS_Z = 35.0          # wire axis = bearing-bore CENTRE, measured above the deck top (z=0).
+                       # The feeder sits FLAT on the deck and its output axis is 35mm above
+                       # its mounting face, so the feed tube lines up at z=35. At 35 the Ø63
+                       # fixed gear clears the deck (bottom ~3.5mm above z=0).
 TUBE_BORE = 10.0
 
 # ── fixed gear (head's rotation pinion meshes its outside) ──────────
@@ -47,7 +46,7 @@ INSERT_Y = 12.0                  # upright bottom-bolt spread (±Y)
 R_GEAR_BOLT = 14.0               # gear bolt-circle radius (outside the Ø22 bearing seat)
 GEAR_BOLT_ANG = (180, 60, -60)   # 3 bolts: one up, two lower
 SPACER_OD, SPACER_H = 30.0, 4.0  # separate spacer ring: spans the gap to the upright face
-SPACER_BORE = TUBE_BORE + 0.5    # clears the tube/sleeve
+SPACER_BORE = 14.0               # clears the bearing inner race when bolted down (not just the tube)
 
 # ── feeder (1KGSSJ-B) ───────────────────────────────────────────────
 # Positioned so the feeder NOSE sits ~14mm in front of the rear bearing upright
