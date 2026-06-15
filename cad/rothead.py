@@ -57,10 +57,19 @@ M3_CLEAR = 3.4                         # NEMA17 face is tapped M3, so the plate 
 
 # ── 2-piece split + adjustment slots ────────────────────────────────
 ROT_SLOT = 2.0          # rotation NEMA mount: ±travel to set the pinion/fixed-gear mesh
-BEND_SLOT = 5.0         # cycloid mount: ±travel to set the bend-head height above the wire
 IFACE_INS_D, IFACE_INS_H = 4.6, 5.0    # M3 heat-set inserts joining piece 2 -> piece 1
 IFACE_X = -5.0                          # hub-top join pad (clear of the base edge -9 and hub end -2)
-CYC_INS_Y, CYC_INS_Z = 14.0, 12.5       # cycloid-base side inserts: ±Y (outside the hub), mid-Z
+
+# bend-motor mount (piece 2): a vertical face the bend-actuator plate bolts to,
+# extended UP ~MESH_R (mirroring the rotation arm that hangs down) with 2 vertical
+# slots so the bend actuator's distance from the wire is adjustable (±BMNT_SLOT)
+# for various mandrels. The motor mounts at a fixed X ("out"); the slots set Z.
+BMNT_X = BEND_X + CYC_SQ / 2    # -9, the cyclo +X face plane = the mount-face position
+BMNT_T = MOUNT_T                # 6mm plate
+BMNT_SLOT = 10.0               # ±travel (distance-from-wire adjustment)
+BMNT_SLOT_Y = 8.0              # the 2 vertical slots at ±Y
+BMNT_Z_TOP = MESH_R + 3        # top of the mount (up the same distance the rot motor drops)
+BMNT_SLOT_Z = 28.0            # slot centre height
 
 # ── tube clamp hub ──────────────────────────────────────────────────
 # Short (8mm) boss on the bend-head/attachment end of the tube (its old long -X
@@ -160,22 +169,22 @@ def rot_piece():
 
 
 def bend_piece():
-    """Piece 2 (flat-print): bolts down onto piece 1's hub-top pad, then reaches to
-    the cycloid base's +X face as two slotted tabs (at y=±CYC_INS_Y, outside the
-    hub). Vertical slots (±BEND_SLOT) bolt into 2 heat-set inserts on the base to
-    set the head height. The base inserts go at (x=-9, y=±CYC_INS_Y, z=CYC_INS_Z)."""
+    """Piece 2 (flat-print): bolts down onto piece 1's hub-top pad, then rises as a
+    vertical mounting face (up to ~z=BMNT_Z_TOP, mirroring the rotation arm) with two
+    vertical M3 slots (±BMNT_SLOT). The bend-actuator plate bolts to it at a fixed X
+    ('out') and slides up/down to set the die's distance from the wire per mandrel."""
     # foot on the join pad + clearance for the two join bolts
     b = Pos(IFACE_X, 0, PAD_Z + 2) * Box(6, 16, 4)                  # z PAD_Z..PAD_Z+4
     for ix in (IFACE_X - 3, IFACE_X + 3):
         b -= zcyl(M3_CLEAR, PAD_Z - 0.5, PAD_Z + 5, x=ix, y=0)
-    # spreader from the foot out to the two tabs (above the hub, +X of the base body)
-    b += Pos(-5.5, 0, 15) * Box(7, 2 * CYC_INS_Y + 8, 4)           # x -9..-2, z 13..17
-    # two slotted tabs against the base +X face (x=-9), clearing the hub at y=±CYC_INS_Y
-    base_x = BEND_X + CYC_SQ / 2                                    # -9
-    for sy in (CYC_INS_Y, -CYC_INS_Y):
-        b += Pos(base_x + 2, sy, 12) * Box(4, 8, 12)               # tab x -9..-5, z 6..18
-        b -= (Pos(base_x + 2, sy, CYC_INS_Z) * Rot(0, 90, 0)
-              * _slot(M3_CLEAR, BEND_SLOT, 8))                      # vertical slot, bolt -X to base
+    # vertical mounting plate rising from the foot up to BMNT_Z_TOP (normal +X)
+    plate_w = 2 * BMNT_SLOT_Y + 12                                  # Y width
+    b += Pos(BMNT_X + BMNT_T / 2, 0, (PAD_Z + BMNT_Z_TOP) / 2) * Box(
+        BMNT_T, plate_w, BMNT_Z_TOP - PAD_Z)                        # x -9..-3, z PAD_Z..top
+    # two vertical slots (bored through the plate along X, elongated ±BMNT_SLOT in Z)
+    for sy in (BMNT_SLOT_Y, -BMNT_SLOT_Y):
+        b -= (Pos(BMNT_X + BMNT_T / 2, sy, BMNT_SLOT_Z) * Rot(0, 90, 0)
+              * _slot(M3_CLEAR, BMNT_SLOT, BMNT_T + 2))
     return b
 
 
