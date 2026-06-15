@@ -1,86 +1,85 @@
-# MuJoCo simulation
+# MuJoCo simulation + G-code toolchain
 
-> **Status (2026-06):** the machine was re-architected and ported to build123d.
-> The current sim is `make_mjcf.py` + `view.py`, built directly from the
-> build123d STLs (`build/base.stl` + `build/rothead.stl`) — see `STRUCTURE.md`.
-> The bend-animation (`animate_bend.py`) and collision checker (`interference.py`)
-> described below were tied to the old OpenSCAD architecture and have been
-> **retired** pending a re-port. The **slicer / forward-model** sections
-> (`bend_model.py`, `slicer.py`) are still current. The text below is kept for the
-> slicer reference and is otherwise historical.
+A rigid-body MuJoCo model of the wire bender, assembled directly from the
+**printable** build123d STLs, plus the forward model / slicer / rule-checker that
+turn shapes into G-code and back. All machine parameters come from one source of
+truth, `machine.py` (kept in sync with the CAD by `consistency.py`).
 
----
+## The model (`make_mjcf.py` → `wirebender.xml`)
 
-A rigid-body MuJoCo model of the **whole** wire bender. The bending head uses the
-real CAD meshes (placed with the same transforms as `assemble.py`, so it tracks
-the design); the rest of the machine is **roughed in with primitives** at nominal
-dimensions, to be refined as parts are measured/modeled.
+Assembled from the actual part STLs — what you see is what you print:
 
-![montage](preview/machine.png)
+| Mesh         | Source                | Role                                   |
+|--------------|-----------------------|----------------------------------------|
+| `base`       | `build/base.stl`      | printable: deck + uprights + fixed gear + spacer |
+| `head`       | `build/rothead.stl`   | printable: head bracket (rot + bend pieces) |
+| `pinion`     | `build/pinion.stl`    | printable: rotation pinion (animated, meshes the fixed gear) |
+| `benddie`    | `build/bend_endcap.stl` | cycloidal output + bend pin            |
+| `head_refs`  | `build/head_refs.stl` | **reference** (purchased): NEMA motors + cycloid drive |
+| `feeder`     | `build/feeder_body.stl` | reference primitive (1KGSSJ-B feeder) |
 
-## What's modeled
+Joints (collisions are off — kinematic visualization, driven by actuators):
 
-All three machine axes, driven by position actuators:
+| Joint         | Type  | Axis                | Function                                  |
+|---------------|-------|---------------------|-------------------------------------------|
+| `tube_rot`    | hinge | wire axis (X)       | Axis 2 — bend **direction** (head roll)   |
+| `bend`        | hinge | cycloid axis (Z)    | Axis 3 — bend **degree** (270° travel)    |
+| `pinion_spin` | hinge | pinion axis         | display only — rolls on the fixed gear, `= tube_rot × machine.PINION_RATIO` |
 
-| Joint      | Type  | Axis                    | Machine function              |
-|------------|-------|-------------------------|-------------------------------|
-| `feed`     | slide | wire/feed-tube axis (Y) | Axis 1 — wire **feed**        |
-| `tube_rot` | hinge | wire/feed-tube axis (Y) | Axis 2 — bend **direction**   |
-| `bend`     | hinge | motor shaft (Z)         | Axis 3 — bend **degree**      |
+Wire **feed** (Axis 1) is kinematic — the formed wire grows out of the head in
+`animate_bend.py`, not a sliding joint. A `pin` site + `pin_pos` sensor track the
+bend-pin tip.
 
-- **Real meshes:** the bending head — `motor`, `bender-head`, `motor-flange`.
-- **Rough primitives** (in the `LAYOUT` block of `make_mjcf.py`, tagged `[ROUGH]`):
-  base plate, U-bracket, feed tube, drive pulley, tube-rotation motor, feeder
-  body (1KGSSJ-B), NEMA17 drive stepper, and the wire stock.
+```bash
+cd sim && MUJOCO_GL=osmesa ../py/bin/python make_mjcf.py   # or: make model
+DISPLAY=:0 ../py/bin/python view.py                        # or: make view
+```
 
-Collisions are disabled (`contype/conaffinity = 0`) — this is a kinematic
-visualization driven by actuators, not a contact/dynamics sim.
+`view.py` auto-sweeps each axis through its limit (head roll + 270° bend),
+interference-free; `view.py --manual` gives draggable sliders.
 
 ## Predicting the wire shape (`bend_model.py`)
 
 A deterministic forward model: feed it a bending **program** (`feed` / `rotate` /
-`bend` ops — the three axes) and it walks a moving frame along the wire to compute
-the resulting **3D shape**, with a springback factor. This predicts the part the
-machine makes — i.e. your G-code previewer.
+`bend` ops) and it walks a moving frame along the wire to compute the resulting
+**3D shape**, with a springback factor. Bends are arcs of radius
+`machine.BEND_RADIUS` (mandrel radius + wire radius ≈ 2.8 mm at 14 ga; pass
+`bend_radius=0` for sharp corners), so predicted lengths include the wire consumed
+in each arc.
 
 ```bash
-../py/bin/python bend_model.py                        # simulate the examples
-MUJOCO_GL=osmesa ../py/bin/python bend_model.py --png  # render to preview/shapes.png
-../py/bin/python bend_model.py square --springback 0.07
+../py/bin/python bend_model.py                         # simulate the examples
+MUJOCO_GL=osmesa ../py/bin/python bend_model.py --png   # render to preview/shapes.png
 ```
 
-Example programs live in `EXAMPLES` (square, staple, chair, coil). Bends are
-modeled as **arcs** of radius `BEND_RADIUS` (default 4 mm — the wire wrapping the
-mandrel; set `bend_radius=0` for sharp corners), so predicted lengths include the
-wire consumed in each arc. `springback` defaults to 0 and is a placeholder to
-calibrate against real 14/16 ga bends.
+Example programs live in `EXAMPLES` (square, staple, chair, coil).
 
-## Animating the bend on the machine (`animate_bend.py`)
+## Animating a program on the machine (`animate_bend.py`)
 
-Runs a program **on the machine**: the feed-tube rotation and bend flange move
-while the formed wire grows out of the bending head — in the correct machine frame
-(head fixed; the formed wire trails out and swings about the bending point as each
-bend forms, like wire pushed past a fixed mandrel). The final shape matches
-`bend_model.py` exactly (verified on the examples).
+Runs a program **on the machine**: the head rolls (Axis 2), the bend die sweeps
+(Axis 3), the pinion meshes the fixed gear, and the formed wire grows out of the
+head. Before running it **enforces the machine limits** (`interference.py`): on an
+error-severity violation it animates up to the faulting bend, then **halts with a
+magenta fault marker** and a non-zero exit (`--force` overrides).
 
 ```bash
-MUJOCO_GL=osmesa ../py/bin/python animate_bend.py staple   # -> preview/bending.gif
-../py/bin/python animate_bend.py chair --view              # live playback (display)
+MUJOCO_GL=osmesa ../py/bin/python animate_bend.py staple    # -> preview/bending_staple.gif
+../py/bin/python animate_bend.py chair --view               # live playback (needs a display)
+../py/bin/python animate_bend.py part.gcode                 # run a sliced program
 ```
 
 ## Slicer: model → G-code (`slicer.py`)
 
-The inverse of `bend_model.py` — a "slicer" for the bender, built as a pluggable
-framework: an **extraction method** turns a source into one or more wire paths,
-then a shared backend recovers the `feed`/`rotate`/`bend` program and emits G-code
-for the three GRBL axes (X = feed mm, Y = tube rotation deg, Z = bend deg).
+The inverse of `bend_model.py`, a pluggable framework: an **extraction method**
+turns a source into one or more wire paths, then a shared backend recovers the
+`feed`/`rotate`/`bend` program and emits G-code for the three GRBL axes (X = feed
+mm, Y = tube rotation deg, Z = bend deg).
 
 ```bash
 ../py/bin/python slicer.py --list-methods
-../py/bin/python slicer.py chair                        # built-in example
-../py/bin/python slicer.py drawing.svg --tol 0.5 --check -o part.gcode
+../py/bin/python slicer.py chair --check                 # built-in example + rule check
+../py/bin/python slicer.py drawing.svg --tol 0.5 -o part.gcode
 ../py/bin/python slicer.py wire.stl --method centerline  # tube mesh -> spine
-../py/bin/python slicer.py path.json --springback 0.07
 ```
 
 **Extraction methods** (`--method`, else auto-detected by extension):
@@ -90,101 +89,55 @@ for the three GRBL axes (X = feed mm, Y = tube rotation deg, Z = bend deg).
 | `points` | `.json` / `.csv` | list of `[x,y(,z)]` |
 | `svg` | `.svg` | first `<path>` (M/L/H/V/C/Q/Z), 2D |
 | `example` | a name | a built-in `bend_model` example |
-| `centerline` | `.stl`/`.obj`/`.ply` | tube mesh → extracted spine *(experimental)* |
-| `cross_section` | mesh + `--method` | slice a solid into contour loops (`--axis`, `--spacing`) |
-| `edge_follow` | mesh + `--method` | feature edges → wire (`--feature-angle`, `--single`) |
+| `centerline` | mesh | tube mesh → extracted spine *(experimental)* |
+| `cross_section` | mesh | slice a solid into contour loops (`--axis`, `--spacing`) |
+| `edge_follow` | mesh | feature edges → wire (`--feature-angle`, `--single`) |
 
-Hybrids are still planned — see `PLAN.md`. A method may return several paths
-(separate wire pieces); the G-code then separates them with a cut/reload pause
-(`M0`). `cross_section`/`edge_follow`/`centerline` all take meshes, so meshes
-auto-detect to `centerline`; pass `--method` to choose another.
+Feeds are shortened by `r·tan(α/2)` (setback) at each bend and bends
+over-commanded by `1/(1-springback)`; **fit error** (max deviation from the input)
+is reported. `--check` runs the rule-checker on each sliced path.
 
-`edge_follow` traces the model's sharp edges as wire. A wireframe is a graph and
-the bender makes one strand, so by default it splits each connected piece into the
-fewest open trails that cover its edges once (separate pieces, no overlap).
-`--single` forces one strand by Eulerian augmentation, but that retraces edges
-(the wire would overlap / fold back 180°, which shows up as a large fit error).
+## Manufacturability rules (`interference.py`)
 
-- **Setback + springback compensation:** feeds shortened by `r·tan(α/2)` at each
-  bend so the rounded-corner part matches the design; bends over-commanded by
-  `1/(1-springback)`.
-- **Fit error** reported — max deviation of the produced part from the input
-  (irreducible ≈ the corner-rounding sagitta `r(1-cos(α/2))`).
-- **`--check`** runs the collision checker on each sliced path.
+A **flag-only** checker for the single-pin bend cell. It walks a program (same
+kinematics as `bend_model`) and reports per-bend violations of the machine limits:
 
-Inverse kinematics round-trips exactly through the forward model (verified); a
-sliced program can be previewed/animated/checked before cutting wire.
-
-## Collision checking (`interference.py`)
-
-Runs a program through the machine and checks the formed wire at every frame for:
-
-- **self-collision** — the part crossing itself (exact; the most common failure)
-- **table / floor** — downward bends going below the table (exact)
-- **machine bodies** — feeder, NEMA17, rotation motor, bracket, base (exact)
-- **bending head** — against the *real* head mesh, but **approximate**: the wire
-  bends around the mandrel into the head's cutaway, and our rough bend kinematics
-  don't yet model that, so the head check only catches wire re-entering from far
-  off. Tightens up once bend radius is modeled (see `PLAN.md`).
+- `travel` — bend command > `DIE_TRAVEL_DEG` (270° die range)
+- `min_straight` — inter-bend straight too short for the setback + pin grab (this
+  is where the fixed mandrel radius bites)
+- `pin_part` — the pin sweep would strike the already-formed part
+- `pin_tube` — wrap past `MAX_WRAP_DEG` swings the pin toward the feed tube
+- `part_head` — the formed part swings back into the head body
 
 ```bash
-../py/bin/python interference.py                 # check every program
-../py/bin/python interference.py spiral_flat     # check one (this one self-collides)
-MUJOCO_GL=osmesa ../py/bin/python interference.py spiral_flat --png  # render the worst frame
+../py/bin/python interference.py chair        # check an example (or a .gcode file)
+../py/bin/python interference.py --caps        # print the machine limits
 ```
 
-Needs `scipy` + `rtree` (mesh signed-distance). The sim itself runs collisions
-*off* (kinematic viz); this checks collisions offline against the wire geometry.
+It's wired into `slicer.py --check` and enforced in `animate_bend.py`. The
+clearance constants are calibratable placeholders (see `PLAN.md`).
+
+## Other tools
+
+- **`machine.py`** — single source of truth for the machine parameters (axis
+  heights, tube, mandrel/pin/die, wire, gear ratio, `BEND_RADIUS`, the limits).
+- **`consistency.py`** (`make check-consistency`) — asserts `machine.py` matches
+  the CAD constants so they can't drift.
+- **`check_pin.py`** (`make check-pin`) — sweeps the axes and reports the bend
+  die's mesh-level clearance to the feed tube (`mj_geomDistance`).
+- **`render.py`** — headless montage / still renders.
 
 ## Setup
 
-Uses the same virtualenv as the CAD tools, plus `mujoco` (and `scipy`+`rtree`
-for the interference checker's mesh distance queries):
-
 ```bash
 python3 -m venv py
-./py/bin/pip install mujoco trimesh numpy pyyaml pillow scipy rtree
+./py/bin/pip install mujoco trimesh numpy pillow networkx
 ```
-
-## Use
-
-```bash
-cd sim
-
-# (Re)generate wirebender.xml + binary meshes from manifest.yaml
-../py/bin/python make_mjcf.py
-
-# Interactive viewer — drag the feed / tube_rot / bend sliders in the Control panel
-../py/bin/python view.py
-../py/bin/python view.py --demo          # scripted "make a shape" sequence
-
-# Headless renders (no display needed)
-MUJOCO_GL=osmesa ../py/bin/python render.py          # 4-pose montage PNG
-MUJOCO_GL=osmesa ../py/bin/python render.py --gif     # animated demo GIF
-```
-
-## Files
-
-| File                | Description                                              |
-|---------------------|----------------------------------------------------------|
-| `make_mjcf.py`      | Generates `wirebender.xml` + `meshes/` from the manifest |
-| `wirebender.xml`    | The MJCF model (generated — don't hand-edit)             |
-| `view.py`           | Interactive viewer / scripted demo (needs a display)     |
-| `render.py`         | Headless montage / GIF renderer                          |
-| `bend_model.py`     | Forward model: bending program → predicted 3D wire shape |
-| `animate_bend.py`   | Animate a program on the machine (wire forms out of the head) |
-| `interference.py`   | Collision check: wire vs self / table / machine bodies / head |
-| `slicer.py`         | CAD path (points / SVG) → machine program → G-code            |
-| `meshes/`           | Binary STL meshes (converted from `build/*.stl`)         |
-| `preview/`          | Rendered montage / GIF output                            |
 
 ## Notes
 
-- Geometry is in mm in CAD; the model scales to meters (`scale="0.001"` on meshes,
-  positions converted) so MuJoCo's defaults behave.
-- `make_mjcf.py` reads the intermediate STLs in `build/`. If they're missing, run
-  `python3 assemble.py manifest.yaml` from the repo root first.
-- The bending flange is nearly 4-fold symmetric, so the `bend` axis is easier to
-  see in the live viewer than in a single still.
-- `[ROUGH]` dimensions in `make_mjcf.py` are placeholders — refine them (or swap
-  primitives for real meshes) as the feeder/bracket/tube parts get measured.
+- Geometry is mm in CAD; the model scales to metres (`scale="0.001"` on meshes).
+- `make_mjcf.py` reads the STLs in `build/` — run `make parts head` first if
+  they're missing.
+- Collisions are off in the sim (kinematic viz); `interference.py` checks
+  manufacturability offline and `check_pin.py` checks mesh clearance.

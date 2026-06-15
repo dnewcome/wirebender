@@ -26,98 +26,40 @@ Wire is fed from a spool using a 3D printer extruder, through a rotating feed tu
 - The U-bracket is extended to also mount the tube rotation motor
 
 ### Bending Head
-- Fixed to the end of the feed tube; rotates with it
-- Driven by a dedicated stepper motor
-- **Mandrel:** The motor shaft itself
-- **Bending flange:** 3D printed, mounted directly to the bending motor shaft; an M3 screw through the edge acts as the bending shoe
-- **Motor mount:** 3D printed bracket (`bender-head.scad`) bolts to the feed tube flange
+- A cantilevered head clamps the end of the passive feed tube and **rotates about
+  the wire axis** (Axis 2), carrying the bend mechanism around with it.
+- **Bend drive (Axis 3):** a 20:1 Sweep Dynamics micro-cycloidal drive + pancake
+  NEMA17. A pin on the cycloidal output sweeps the wire around a fixed mandrel —
+  single-pin bending; bend radius is set by the mandrel.
+- **Rotation drive (Axis 2):** a pancake NEMA17 + a 12T pinion meshing a fixed 40T
+  gear on the base; the rotation motor hangs at the mesh radius and doubles as a
+  counterweight.
+- **Tube clamp:** the head grips the feed tube on a short boss with an M3 set screw.
 
-## Files
+## Building the parts
 
-| File | Description |
-|------|-------------|
-| `bender-head.scad` | OpenSCAD model of the bending head motor mount / bending flange |
-| `motor-flange.scad` | OpenSCAD model of the motor shaft flange / hub |
-| `manifest.yaml` | Assembly manifest describing all parts, transforms, and mating constraints |
-| `assemble.py` | Python script that builds the full CAD assembly from the manifest |
-
-## Assembly Script
-
-`assemble.py` reads a YAML manifest, loads all parts (STEP, STL, GLB/GLTF, OpenSCAD, or CadQuery `.py`), applies transforms and mating constraints, and exports a combined assembly.
-
-### Setup
+The machine is modeled in **build123d** (`cad/*.py`), assembled into a **MuJoCo**
+sim (`sim/`), and the CAD↔sim machine parameters live in one place
+(`sim/machine.py`). Everything is driven by the `Makefile`:
 
 ```bash
 python3 -m venv py
-source py/bin/activate
-pip install cadquery trimesh numpy pyyaml
+./py/bin/pip install build123d gggears mujoco trimesh numpy pillow networkx
+
+make parts     # base plate / uprights / fixed gear / spacer (printable STLs)
+make head      # printable head pieces (rot + bend) + pinion + reference meshes
+make model     # assemble the MuJoCo model (sim/wirebender.xml) from the STLs
+make view      # open the interactive sim (head auto-sweeps its limits)
+make assembly  # full machine as one build123d STEP (build/assembly.step)
+make           # list all targets
 ```
 
-OpenSCAD is required to compile `.scad` files. Install it at [openscad.org](https://openscad.org/) or via `brew install openscad`.
+Generated artifacts land in `build/` and `sim/meshes/` (both gitignored —
+reproduce from source). See `STRUCTURE.md` for the repo layout, `PLAN.md` for the
+design roadmap, and `sim/README.md` for the simulation + G-code toolchain.
 
-### Running
-
-```bash
-python3 assemble.py manifest.yaml
-```
-
-Outputs go to the directory specified by `out_dir` in the manifest (default: `build/`):
-
-- `build/assembly.step` — full assembly in STEP format (best for CAD import)
-- `build/assembly.glb` — visual preview in GLB format (open in any 3D viewer)
-
-To specify output paths explicitly:
-
-```bash
-python3 assemble.py manifest.yaml --out my_assembly.step --outglb my_assembly.glb
-```
-
-### Manifest Format
-
-```yaml
-name: "my-assembly"   # assembly name
-units: "mm"           # "mm" or "inch"
-out_dir: "build"      # output directory (relative to manifest file)
-
-parts:
-  - name: motor
-    file: motor.glb
-    xform:
-      t: [0, 0, 0]       # translation in manifest units (mm)
-      r_deg: [0, 0, 0]   # rotation in degrees, applied X → Y → Z
-      s: 1000.0           # scale factor (use 1000 for GLB files in meters)
-
-  - name: bracket
-    file: bracket.scad
-    xform: {t: [0, 0, 0], r_deg: [0, 0, 0], s: 1.0}
-    anchors:
-      # Named points on this part, in the part's local SCAD/model coordinates
-      mount_face: {t: [0, 0, 11], axis: [0, 0, 1]}
-
-  - name: insert
-    file: insert.scad
-    xform: {t: [0, 0, 0], r_deg: [180, 0, 0], s: 1.0}
-    anchors:
-      bore_top: {t: [0, 0, 14], axis: [0, 0, 1]}
-    mates:
-      # Align bore_top of this part to mount_face of bracket
-      - my_anchor: bore_top
-        to_part: bracket
-        to_anchor: mount_face
-```
-
-**Anchor mating:** When a part has a `mates` entry, its position in the assembly is determined by aligning the named anchor point and axis to the target part's anchor. The part's `xform.r_deg` is applied as a pre-rotation before mating (to orient the part's natural axis). `xform.t` is ignored when mates are defined.
-
-**Supported file types:** `.step`/`.stp`, `.stl`, `.glb`/`.gltf`/`.obj`/`.ply`, `.scad`, `.py` (CadQuery generator).
-
-## Bending Head Design Notes (`bender-head.scad`)
-
-- Overall part diameter: 43 mm
-- Flange mounting hole spacing: 35 mm on center (M4 holes)
-- Feed tube diameter: 6.35 mm (0.25 in)
-- Bending flange pocket diameter: 10 mm + 2 mm fudge
-- Part height: 11 mm
-- An M4 cross-hole allows a set screw or insert perpendicular to the tube axis
+Vendor geometry (the Sweep Dynamics cycloid STEP / `nema-17-cycloid-base.stl`) is
+**not redistributed**; the scripts fall back to placeholder blocks if it's absent.
 
 ## Checklist
 
@@ -128,7 +70,7 @@ parts:
 - [ ] Verify feed tube bearing selection and fit
 - [ ] Confirm toothed belt/pulley sizing for feed tube rotation axis
 - [ ] Validate bending head flange fits the chosen bending motor shaft
-- [ ] Test M3 bending shoe screw fit and geometry in `bender-head.scad`
+- [ ] Test the bend pin / mandrel fit and geometry (`cad/bend_endcap.py`)
 - [ ] Design wire guide / straightener between spool and extruder
 
 ### Electronics & Control
@@ -148,7 +90,7 @@ parts:
 - [ ] Develop homing and initialization routine
 
 ### Fabrication
-- [ ] Print `bender-head.scad` and test fit on bending motor
+- [ ] Print the head pieces (`make head`) and test fit on the cycloid/rotation motors
 - [ ] Bend and drill U-bracket sheet aluminum pieces
 - [ ] Assemble feed tube with bearings into bracket
 - [ ] Full mechanical assembly and fit check
