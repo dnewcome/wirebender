@@ -62,8 +62,11 @@ IFACE_X = -5.0                          # hub-top join pad (clear of the base ed
 CYC_INS_Y, CYC_INS_Z = 14.0, 12.5       # cycloid-base side inserts: ±Y (outside the hub), mid-Z
 
 # ── tube clamp hub ──────────────────────────────────────────────────
+# Short (8mm) boss on the bend-head/attachment end of the tube (its old long -X
+# protrusion fouled the rotation motor). Clamped by a radial M3 heat-set insert +
+# grub set screw facing +Y (reachable from the narrow side) — no pinch slit.
 HUB_OD = 18.0
-HUB_X0, HUB_X1 = -26.0, -2.0
+HUB_X0, HUB_X1 = -10.0, -2.0       # 8mm long
 
 
 def xcyl(d, x0, x1, y=0.0, z=0.0):
@@ -73,6 +76,12 @@ def xcyl(d, x0, x1, y=0.0, z=0.0):
 
 def zcyl(d, z0, z1, x=0.0, y=0.0):
     return Pos(x, y, z0) * Cylinder(d / 2, z1 - z0, align=(Align.CENTER, Align.CENTER, Align.MIN))
+
+
+def ycyl(d, y0, y1, x=0.0, z=0.0):
+    """Solid cylinder Ø d along +Y from y0 to y1, at (x, z)."""
+    return Pos(x, y0, z) * Rot(-90, 0, 0) * Cylinder(
+        d / 2, y1 - y0, align=(Align.CENTER, Align.CENTER, Align.MIN))
 
 
 def _slot(d, travel, depth):
@@ -85,9 +94,14 @@ def _slot(d, travel, depth):
 
 
 def hub():
-    h = xcyl(HUB_OD, HUB_X0, HUB_X1)
-    h -= xcyl(TUBE_D, HUB_X0 - 1, HUB_X1 + 1)
-    h -= Pos((HUB_X0 + HUB_X1) / 2, 0, HUB_OD / 2) * Box(HUB_X1 - HUB_X0 + 2, 1.6, HUB_OD)  # pinch slit
+    """Short tube-clamp boss with a radial M3 heat-set set screw (no pinch slit)."""
+    h = xcyl(HUB_OD, HUB_X0, HUB_X1)                       # boss along the tube
+    h -= xcyl(TUBE_D, HUB_X0 - 1, HUB_X1 + 1)              # tube bore
+    xc = (HUB_X0 + HUB_X1) / 2
+    # +Y radial set screw: one Ø IFACE_INS_D hole for the M3 heat-set insert that
+    # penetrates a couple mm INTO the bore (not tangent to it) so the seated grub
+    # presses the tube cleanly. Heat-set inserts press flush, so no shoulder needed.
+    h -= ycyl(IFACE_INS_D, TUBE_D / 2 - 2, HUB_OD / 2 + 1, x=xc)
     return h
 
 
