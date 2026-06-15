@@ -57,9 +57,9 @@ XML = f"""<mujoco model="wirebender">
       <!-- Axis 3: bend die (cycloidal output + pin) about the bend axis -->
       <body name="benddie" pos="{BX} {BY} {BZ}">
         <joint name="bend" type="hinge" axis="0 0 1" range="-3.2 3.2"/>
-        <geom type="mesh" mesh="benddie" quat="0 1 0 0" pos="0 0 0" rgba="0.95 0.5 0.15 1" contype="0" conaffinity="0"/>
-        <!-- bending-pin tip (mesh pin tip 15,0,15.5 through the geom's 180deg-about-X quat) -->
-        <site name="pin" pos="0.015 0 -0.0155" size="0.0025" rgba="1 0.1 0.1 1"/>
+        <geom type="mesh" mesh="benddie" pos="0 0 0" rgba="0.95 0.5 0.15 1" contype="0" conaffinity="0"/>
+        <!-- bending-pin tip = mesh pin tip (15,0,15.5), no flip (die body points +Z, clear of the tube) -->
+        <site name="pin" pos="0.015 0 0.0155" size="0.0025" rgba="1 0.1 0.1 1"/>
         <inertial pos="0 0 0" mass="0.05" diaginertia="2e-5 2e-5 2e-5"/>
       </body>
     </body>

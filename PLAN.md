@@ -87,9 +87,13 @@ exact insert spacing on the cycloid boss (today's slots assume `CYC_INS_Y=±14`,
 - [ ] **Calibrate the clearance constants** against the real head once the head
   redesign lands: `MAX_WRAP_DEG` (180° placeholder — the angle past which the pin
   returns toward the tube), `MIN_GRAB`, `PIN_SWEEP_R`, the `HEAD_BACK_REACH`/
-  `HEAD_RADIUS` keep-out. The current mesh-level pin↔tube interference of the
-  as-built CAD is measured separately by `check_pin.py` (the bend die is mounted
-  ~8.5mm off the wire axis — see that tool); fold its result in here once fixed.
+  `HEAD_RADIUS` keep-out. The mesh-level pin↔tube clearance is measured by
+  `check_pin.py` — now **+4mm clear** across the full axis range after orienting
+  the bend die body-up (`make_mjcf`); flipped body-down it buried the pin in the
+  tube. NOTE: clearing requires the die body to point away from the wire, which
+  only fully works once the head redesign ends the feed tube before the bend
+  point (today's tube still runs through it). The real die orientation must come
+  from the head CAD; the sim quat just reflects the intended (clear) build.
 - [ ] **Upgrade `part_head` to the real head mesh.** Today it's a parametric
   keep-out box behind the bend point; place the formed part in the machine frame
   and run a signed-distance check against the actual head STL (like `check_pin`).
