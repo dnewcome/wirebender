@@ -51,10 +51,11 @@ def _rot(v, axis, ang):
     return v * c + np.cross(axis, v) * s + axis * np.dot(axis, v) * (1 - c)
 
 
-# Bend radius: the wire wraps the mandrel (motor shaft) at a finite radius rather
-# than a sharp corner. ~mandrel radius + wire radius; tune/calibrate to the real
-# machine (see PLAN.md). 0 -> sharp corners (the original behaviour).
-BEND_RADIUS = 4.0
+# Bend radius: the wire wraps the mandrel at a finite radius rather than a sharp
+# corner (mandrel radius + wire radius). Single source of truth = machine.py, so
+# the forward model, slicer, and rule-checker all lay the same radius. 0 ->
+# sharp corners (pass bend_radius=0 to simulate()).
+from machine import BEND_RADIUS
 
 
 def _arc_points(p0, b, axis, ang, r, max_step_deg=8.0):

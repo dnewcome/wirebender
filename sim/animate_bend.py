@@ -18,14 +18,16 @@ from pathlib import Path
 import numpy as np
 import mujoco
 from bend_model import EXAMPLES, BEND_RADIUS
+from machine import WIRE_AXIS_WORLD_MM
 
 HERE = Path(__file__).resolve().parent
 XML = HERE / "wirebender.xml"
 OUT = HERE / "preview"
 
-# ── machine frame (mm): wire axis = X at (y=0, z=35); bend point at the head front ──
-ZAXIS_MM = 21.0
+# ── machine frame (mm): wire axis = X at (y=0, z=ZAXIS_MM); bend point at the head front ──
+ZAXIS_MM = WIRE_AXIS_WORLD_MM             # = 41 mm, single-sourced (deck top + plate on floor)
 B = np.array([-30.0, 0.0, ZAXIS_MM])     # bend point (mandrel), fixed in world
+C_FAULT = "1 0 1 1"                       # magenta fault marker
 E = np.array([-1.0, 0.0, 0.0])           # formed wire trails -X (out the front)
 B0 = np.array([0.0, -1.0, 0.0])          # deflect in -Y -> bend axis = +Z (the cycloidal
                                           # axis), so the wire bends in the horizontal plane
@@ -102,16 +104,24 @@ def _capsule(p0, p1, r_mm, rgba):
             f'contype="0" conaffinity="0"/>')
 
 
-def _wire_body(W):
+def _sphere(p, r_mm, rgba):
+    a = np.asarray(p) * 0.001
+    return (f'      <geom type="sphere" pos="{a[0]:.5f} {a[1]:.5f} {a[2]:.5f}" '
+            f'size="{r_mm*0.001:.5f}" rgba="{rgba}" contype="0" conaffinity="0"/>')
+
+
+def _wire_body(W, fault_pt=None):
     g = [_capsule(B, [FEED_BACK_X, 0, ZAXIS_MM], WIRE_R_MM, C_STOCK)]
     for i in range(len(W) - 1):
         if np.linalg.norm(W[i + 1] - W[i]) > 1e-6:
             g.append(_capsule(W[i], W[i + 1], WIRE_R_MM, C_FORMED))
+    if fault_pt is not None:
+        g.append(_sphere(fault_pt, WIRE_R_MM * 3.5, C_FAULT))
     return '    <body name="formed_wire">\n' + "\n".join(g) + "\n    </body>\n  </worldbody>"
 
 
-def _inject(xml, W):
-    return xml.replace("  </worldbody>", _wire_body(W), 1)
+def _inject(xml, W, fault_pt=None):
+    return xml.replace("  </worldbody>", _wire_body(W, fault_pt), 1)
 
 
 def _set_joint(model, data, name, val_rad):
@@ -135,7 +145,17 @@ def _add_capsule_scn(scn, p0, p1, r_mm, rgba):
     scn.ngeom += 1
 
 
-def _draw_wire_scn(scn, W):
+def _add_sphere_scn(scn, p, r_mm, rgba):
+    if scn.ngeom >= scn.maxgeom:
+        return
+    g = scn.geoms[scn.ngeom]
+    size = np.array([r_mm * 0.001] * 3)
+    mujoco.mjv_initGeom(g, mujoco.mjtGeom.mjGEOM_SPHERE, size,
+                        np.asarray(p, float) * 0.001, np.eye(3).flatten(), rgba)
+    scn.ngeom += 1
+
+
+def _draw_wire_scn(scn, W, fault_pt=None):
     """Redraw the formed wire + stock stub into the viewer's user scene."""
     scn.ngeom = 0
     _add_capsule_scn(scn, B, [FEED_BACK_X, 0, ZAXIS_MM], WIRE_R_MM, _rgba(C_STOCK))
@@ -143,11 +163,15 @@ def _draw_wire_scn(scn, W):
     for i in range(len(W) - 1):
         if np.linalg.norm(W[i + 1] - W[i]) > 1e-6:
             _add_capsule_scn(scn, W[i], W[i + 1], WIRE_R_MM, rgba)
+    if fault_pt is not None:
+        _add_sphere_scn(scn, fault_pt, WIRE_R_MM * 3.5, _rgba(C_FAULT))
 
 
-def view_live(name, program, springback=0.0, fps=20):
+def view_live(name, program, springback=0.0, fps=20, fault_pt=None, fault_msg=None):
     """Play the bend program live in the interactive MuJoCo viewer (needs a display).
-    The machine model loads once; the wire is drawn as user-scene capsules each frame."""
+    The machine model loads once; the wire is drawn as user-scene capsules each frame.
+    If fault_pt is set, the program was truncated at the violating bend: play up to
+    it, then HOLD a magenta fault marker (the sim halts at the fault)."""
     import time
     import mujoco.viewer
     frames = frames_for(program, springback=springback)
@@ -158,7 +182,10 @@ def view_live(name, program, springback=0.0, fps=20):
         viewer.cam.azimuth, viewer.cam.elevation = cam.azimuth, cam.elevation
         viewer.cam.distance = cam.distance
         viewer.cam.lookat[:] = cam.lookat
-        print(f"playing '{name}' — orbit with the mouse · close the window to exit")
+        if fault_msg:
+            print(f"playing '{name}' until the fault — {fault_msg}")
+        else:
+            print(f"playing '{name}' — orbit with the mouse · close the window to exit")
         while viewer.is_running():
             for tube_deg, bend_deg, W in frames:
                 if not viewer.is_running():
@@ -169,7 +196,10 @@ def view_live(name, program, springback=0.0, fps=20):
                 _draw_wire_scn(viewer.user_scn, W)
                 viewer.sync()
                 time.sleep(1.0 / fps)
-            time.sleep(0.6)        # hold the finished part, then loop
+            if fault_pt is not None and frames:        # halt: hold the fault marker
+                _draw_wire_scn(viewer.user_scn, frames[-1][2], fault_pt=fault_pt)
+                viewer.sync()
+            time.sleep(0.6)        # hold the finished/faulted part, then loop
 
 
 def _fixed_camera(frames):
@@ -186,15 +216,20 @@ def _fixed_camera(frames):
     return cam
 
 
-def render_gif(name, program, springback=0.0):
+def render_gif(name, program, springback=0.0, fault_pt=None, fault_msg=None):
     from PIL import Image
     frames = frames_for(program, springback=springback)
+    # if faulted, hold the final (pre-fault) frame with a marker for ~1s of gif
+    if fault_pt is not None and frames:
+        frames = list(frames) + [frames[-1]] * 16
     base_xml = XML.read_text()
     tmp = HERE / "_anim_tmp.xml"
     cam = _fixed_camera(frames)
     imgs = []
-    for tube_deg, bend_deg, W in frames:
-        tmp.write_text(_inject(base_xml, W))
+    n = len(frames)
+    for k, (tube_deg, bend_deg, W) in enumerate(frames):
+        fp = fault_pt if (fault_pt is not None and k >= n - 16) else None
+        tmp.write_text(_inject(base_xml, W, fault_pt=fp))
         model = mujoco.MjModel.from_xml_path(str(tmp))   # geom count changes as the wire grows
         data = mujoco.MjData(model)
         _set_joint(model, data, "tube_rot", math.radians(tube_deg))
@@ -205,7 +240,8 @@ def render_gif(name, program, springback=0.0):
         imgs.append(Image.fromarray(renderer.render().copy()))
         renderer.close()
     OUT.mkdir(exist_ok=True)
-    path = OUT / f"bending_{name}.gif"
+    suffix = "_FAULT" if fault_pt is not None else ""
+    path = OUT / f"bending_{name}{suffix}.gif"
     pal = [im.convert("P", palette=Image.ADAPTIVE) for im in imgs]
     pal[0].save(path, save_all=True, append_images=pal[1:], duration=55, loop=0,
                 optimize=False, disposal=2)
@@ -235,6 +271,28 @@ def _resolve_program(source, piece, tol):
     return f"{p.stem}_p{piece+1}" if len(programs) > 1 else p.stem, programs[piece]
 
 
+def _check_program(program, springback):
+    """Enforce the machine limits before running. Returns (result, fault) where
+    fault is None or {op_index, bend, msg} for the first error-severity violation
+    — the op the sim should fault at and halt."""
+    import interference as it
+    res = it.check(program, springback=springback)
+    print(it.summary(res))
+    errs = [f for f in res["findings"] if f["severity"] == "error"]
+    if not errs:
+        return res, None
+    first = min(errs, key=lambda f: f["bend"])
+    bend_no, op_index = -1, len(program)
+    for oi, (op, _) in enumerate(program):
+        if op == "bend":
+            bend_no += 1
+            if bend_no == first["bend"]:
+                op_index = oi
+                break
+    return res, {"op_index": op_index, "bend": first["bend"],
+                 "msg": f"FAULT at bend {first['bend']}: [{first['rule']}] {first['detail']}"}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("program", nargs="?", default="staple",
@@ -244,12 +302,27 @@ def main():
     ap.add_argument("--springback", type=float, default=0.0)
     ap.add_argument("--view", action="store_true",
                     help="play live in the interactive MuJoCo viewer (needs a display)")
+    ap.add_argument("--force", action="store_true",
+                    help="ignore rule violations and animate the whole program anyway")
     args = ap.parse_args()
     name, program = _resolve_program(args.program, args.piece, args.tol)
+
+    fault = None
+    if not args.force:
+        _, fault = _check_program(program, args.springback)
+    run_prog = program[:fault["op_index"]] if fault else program
+    fault_pt = B if fault else None
+    fault_msg = fault["msg"] if fault else None
+
     if args.view:
-        view_live(name, program, springback=args.springback)
+        view_live(name, run_prog, springback=args.springback,
+                  fault_pt=fault_pt, fault_msg=fault_msg)
     else:
-        render_gif(name, program, springback=args.springback)
+        render_gif(name, run_prog, springback=args.springback,
+                   fault_pt=fault_pt, fault_msg=fault_msg)
+    if fault:
+        print(fault["msg"] + "  — sim halted (use --force to override)")
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

@@ -46,28 +46,11 @@ from pathlib import Path
 import numpy as np
 
 import bend_model as bm
+from machine import (DIE_TRAVEL_DEG, WIRE_D, MANDREL_D, PIN_D, PIN_SWEEP_R, CLEAR,
+                     MIN_GRAB, MAX_WRAP_DEG, HEAD_BACK_REACH, HEAD_RADIUS, bend_radius)
 
-# ── machine bend-cell capability model (from the CAD; keep in sync) ──────────
-DIE_TRAVEL_DEG = 270.0     # usable rotation of the cycloid bend output (Axis 3)
-WIRE_D = 1.63              # default stock Ø (14 ga steel; 16 ga ≈ 1.29)
-MANDREL_D = 4.0            # fixed mandrel Ø — cad/rothead.py MANDREL_D
-PIN_D = 4.0               # bending-pin Ø — cad/bend_endcap.py PIN_D
-PIN_SWEEP_R = 13.0         # pin-centre radius from the bend axis — bend_endcap.py PIN_R
-CLEAR = 1.0               # clearance margin (mm) the pin must keep off other bodies
-MIN_GRAB = 6.0            # min straight (mm) the pin needs to grab between bends
-# how far the pin can wrap before it swings back toward the feed tube / incoming
-# wire. Single-pin geometry: past ~180° the pin returns toward the feed side;
-# calibrate to the real die/tube layout (placeholder, capped by DIE_TRAVEL).
-MAX_WRAP_DEG = 180.0
-# head body keep-out behind the bend point (feed side): the part must not swing
-# back into this. Rough box reach (mm) toward the feeder and radius around axis.
-HEAD_BACK_REACH = 8.0
-HEAD_RADIUS = 22.0
-
-
-def bend_radius(wire_d=WIRE_D):
-    """The single corner radius the machine makes: wire wraps the mandrel."""
-    return MANDREL_D / 2 + wire_d / 2
+# All machine constants live in machine.py (single source of truth, kept in sync
+# with the CAD by sim/consistency.py). This module just applies them as rules.
 
 
 def per_stroke_limit_deg():

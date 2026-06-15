@@ -52,16 +52,16 @@ sim: sim/wirebender.xml view       ## build what changed, then open the viewer
 view:                              ## open the MuJoCo viewer (head auto-rotates; add ARGS=--manual to drag sliders)
 	cd sim && DISPLAY=:0 ../$(PY) view.py $(ARGS)
 
-anim: sim/wirebender.xml           ## render a bend animation to a GIF (NAME=staple|square|chair|coil)
-	cd sim && MUJOCO_GL=osmesa ../$(PY) animate_bend.py $(or $(NAME),staple)
+anim: sim/wirebender.xml           ## render a bend GIF; FAULTS+halts on a rule violation (NAME=...; ARGS=--force)
+	cd sim && MUJOCO_GL=osmesa ../$(PY) animate_bend.py $(or $(NAME),staple) $(ARGS)
 
-anim-view: sim/wirebender.xml      ## play a bend program LIVE in the viewer (NAME=...; needs a display)
-	cd sim && DISPLAY=:0 ../$(PY) animate_bend.py $(or $(NAME),staple) --view
+anim-view: sim/wirebender.xml      ## play a bend program LIVE; faults+halts on a violation (NAME=...; needs a display)
+	cd sim && DISPLAY=:0 ../$(PY) animate_bend.py $(or $(NAME),staple) --view $(ARGS)
 
 slice:                             ## model -> G-code (IN=model.svg/.stl/example [OUT=part.gcode])
 	cd sim && ../$(PY) slicer.py $(IN) $(if $(OUT),-o $(OUT),)
 
-run: sim/wirebender.xml            ## run a sliced part in the sim (IN=part.gcode or a model/example)
+run: sim/wirebender.xml            ## run a sliced part in the sim; FAULTS+halts on a rule violation (IN=part.gcode|model|example)
 	cd sim && MUJOCO_GL=osmesa ../$(PY) animate_bend.py $(IN)
 
 check-pin: sim/wirebender.xml      ## track bend-pin position + clearance to the feed tube over the axis range
@@ -69,6 +69,9 @@ check-pin: sim/wirebender.xml      ## track bend-pin position + clearance to the
 
 rules:                             ## check a program against the bend-cell limits (IN=example|part.gcode; or --caps)
 	cd sim && ../$(PY) interference.py $(or $(IN),--caps)
+
+check-consistency:                 ## assert sim/machine.py matches the CAD constants
+	$(PY) sim/consistency.py
 
 sleeve: build/sleeve.stl           ## printed 1/4"-tube -> 608-bearing adapter (print x2)
 

@@ -16,9 +16,10 @@ import numpy as np
 import mujoco
 import trimesh
 
+from machine import WIRE_AXIS_WORLD_Z as ZAXIS, TUBE_D
+
 XML = Path(__file__).resolve().parent / "wirebender.xml"
-ZAXIS = 0.041          # wire-axis world height (m); keep in sync with make_mjcf.py
-TUBE_R = 0.004         # feed-tube radius (m)
+TUBE_R = TUBE_D / 2 / 1000.0   # feed-tube radius (m)
 N = 49                 # samples per axis
 
 

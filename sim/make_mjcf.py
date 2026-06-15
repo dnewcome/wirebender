@@ -18,13 +18,12 @@ for src, dst in [("build/base.stl", "base.stl"),
                  ("build/feeder_body.stl", "feeder.stl")]:
     shutil.copy(ROOT / src, MESH / dst)
 
-ZAXIS = 0.041          # wire-axis height in the world (35mm above deck top + 6mm plate on floor)
-BASE_Z = ZAXIS - 0.035  # base frame wire axis is 35mm above the base top (base still on floor)
+from machine import WIRE_AXIS_WORLD_Z as ZAXIS, BASE_WORLD_Z as BASE_Z, FEEDER_X_WORLD as FEEDER_X, TUBE_D
+# ZAXIS  = wire-axis world height (deck top AXIS_Z + plate on floor)
+# BASE_Z = deck bottom on the floor
 # bend axis in the head frame (mm, from rothead.py): BEND_X, BEND_Y, output height.
 # The cycloid drive body is now part of head.stl (its real integrated base ghost).
 BX, BY, BZ = -0.030, 0.0028, 0.008
-# feeder body: centred mesh, mounting face (-Z) on the base top, nose on -X
-FEEDER_X = 0.151                  # feeder centre on the wire axis (from base.py)
 FEEDER_Z = ZAXIS                  # output (mesh mid-Z) on the wire axis; the feeder model is now
                                   # 70mm tall (output 35mm above its -Z face), so the mounting face
                                   # seats flat on the base top.
@@ -47,7 +46,7 @@ XML = f"""<mujoco model="wirebender">
     <geom name="floor" type="plane" size="0.6 0.6 0.05" pos="0.08 0 0" rgba="0.27 0.28 0.30 1"/>
     <geom name="base" type="mesh" mesh="base" pos="0 0 {BASE_Z}" rgba="0.66 0.68 0.72 1"
           contype="0" conaffinity="0"/>
-    <geom name="tube" type="cylinder" fromto="-0.03 0 {ZAXIS} 0.095 0 {ZAXIS}" size="0.004"
+    <geom name="tube" type="cylinder" fromto="-0.03 0 {ZAXIS} 0.095 0 {ZAXIS}" size="{TUBE_D/2/1000}"
           rgba="0.6 0.62 0.66 1" contype="0" conaffinity="0"/>
     <geom name="feeder" type="mesh" mesh="feeder" pos="{FEEDER_X} 0 {FEEDER_Z}" quat="0 0 0 1"
           rgba="0.3 0.31 0.34 1" contype="0" conaffinity="0"/>

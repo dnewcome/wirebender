@@ -93,6 +93,16 @@ exact insert spacing on the cycloid boss (today's slots assume `CYC_INS_Y=±14`,
 - [ ] **Upgrade `part_head` to the real head mesh.** Today it's a parametric
   keep-out box behind the bend point; place the formed part in the machine frame
   and run a signed-distance check against the actual head STL (like `check_pin`).
+- [x] **Single source of truth + sim enforcement** (2026-06-15). `sim/machine.py`
+  holds all machine params (axis heights, tube, mandrel/pin/die, wire, derived
+  `BEND_RADIUS`, the calibratable limits); `bend_model`, `interference`,
+  `check_pin`, `make_mjcf`, `animate_bend` all read from it, so the CAD, sim,
+  forward model, slicer, and rules describe one machine. `sim/consistency.py`
+  (`make check-consistency`) asserts machine.py matches the CAD constants.
+  `animate_bend` now runs the rule-checker first and, on an error-severity
+  violation, animates up to the faulting bend then HALTS with a magenta fault
+  marker + nonzero exit (`--force` overrides). Fixed drift this exposed:
+  `BEND_RADIUS` 4→2.8 (mandrel-derived) and the animator's stale `ZAXIS_MM` 21→41.
 - [ ] **Reachability / envelope check.** Beyond collisions: does a program stay
   within axis travel limits (feed length, tube-rotation range)?
 - [ ] **Wire-vs-already-formed-part as the part grows** is handled; revisit once
