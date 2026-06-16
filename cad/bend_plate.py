@@ -68,12 +68,14 @@ def bend_plate():
     pad = trimesh.creation.box(extents=[face_x - pad_x0, BOSS_W, flange])
     pad.apply_translation([(pad_x0 + face_x) / 2, 0, flange / 2])
     # lip: the part that PROTRUDES past the plate edge is clear of both the motor and
-    # the round body, so make it taller (z 0..lip_z) to give the M3 insert real wall.
+    # the round body, so give it real depth for the M3 insert. Its TOP is flush with
+    # the flange/boss-base plane (z=flange) — nothing proud of the output side, so the
+    # round body can grow — and it extends DOWN toward the motor side for insert wall.
     lip = trimesh.creation.box(extents=[BOSS_OUT, BOSS_W, lip_z])
-    lip.apply_translation([(edge_x + face_x) / 2, 0, lip_z / 2])
+    lip.apply_translation([(edge_x + face_x) / 2, 0, flange - lip_z / 2])
     part = trimesh.boolean.union([m, pad, lip], engine="manifold")
     # 2 M3 heat-set inserts drilled -X into the lip FACE (horizontal, blind back)
-    zc = lip_z / 2
+    zc = flange - lip_z / 2
     cuts = [_xcyl(INSERT_D, face_x - INSERT_H, face_x + 0.25, s * BOLT_SP / 2, zc) for s in (1, -1)]
     return trimesh.boolean.difference([part] + cuts, engine="manifold"), flange, lip_z
 
@@ -83,6 +85,7 @@ if __name__ == "__main__":
     part, flange, lip_z = bend_plate()
     part.export("build/bend_plate.stl")
     print("bend_plate (vendor cyclo base + side boss):", (part.bounds[1] - part.bounds[0]).round(1),
-          f"| flange-flush pad (z=0..{flange}, clears motor + round body)",
-          f"| protruding lip z=0..{lip_z} holds the 2 M3 inserts @ {BOLT_SP}mm",
+          f"| pad flush in the flange band (z=0..{flange})",
+          f"| lip top flush at z={flange} (output side clear), extends down to "
+          f"z={round(flange - lip_z, 1)} (motor side) holding the 2 M3 inserts @ {BOLT_SP}mm",
           "| watertight:", part.is_watertight)
