@@ -31,6 +31,8 @@ build/pinion.stl: cad/pinion.py cad/base.py cad/gears.py
 	$(PY) cad/pinion.py
 build/bend_plate.stl: cad/bend_plate.py cad/rothead.py cad/parts.py
 	$(PY) cad/bend_plate.py
+build/arbor_mount.stl: cad/arbor_mount.py
+	$(PY) cad/arbor_mount.py            # slow; needs the purchased Sweep Dynamics STEP
 
 # printable parts the sim assembles + reference meshes (motors/cyclo, feeder)
 PARTS := build/base.stl build/rothead.stl build/pinion.stl build/bend_endcap.stl \
@@ -83,6 +85,8 @@ sleeve: build/sleeve.stl           ## printed 1/4"-tube -> 608-bearing adapter (
 pinion: build/pinion.stl           ## stepper pinion (12T, 5mm D-bore + M3 set screw)
 
 bend-plate: build/bend_plate.stl   ## vendor cyclo base + flange-flush side boss w/ 2 M3 inserts (needs the vendor STL)
+
+arbor-mount: build/arbor_mount.stl ## cyclo housing + 4 corner standoff posts w/ M3 inserts (needs the vendor STEP)
 
 vendor: build/cyclo_body.stl       ## re-bake the cycloidal envelope (slow)
 
