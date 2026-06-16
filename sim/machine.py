@@ -28,7 +28,7 @@ BASE_WORLD_Z = PLATE_TH / 1000.0                  # 0.006 m (deck bottom on the 
 FEEDER_X_WORLD = 0.151        # feeder centre on the wire axis (m) (base.py FEEDER_X)
 
 # ── feed tube ───────────────────────────────────────────────────────────────
-TUBE_D = 8.0                  # 1/4" feed tube modeled at Ø8       (rothead.py TUBE_D)
+TUBE_D = 6.35                 # 1/4" feed tube OD (bare tube; sleeved to Ø8 at the bearings)  (rothead.py TUBE_D)
 
 # ── bend cell (cad/rothead.py, cad/bend_endcap.py) ──────────────────────────
 MANDREL_D = 4.0               # fixed mandrel Ø                    (rothead.py MANDREL_D)

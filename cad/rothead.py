@@ -29,7 +29,7 @@ CYCLO_H = 25.9          # cycloidal body depth; output face on one end
 # ── shared with base.py ─────────────────────────────────────────────
 FG_TEETH, FG_MODULE, FG_W, PIN_TEETH = 40, 1.5, 8.0, 12
 MESH_R = (FG_TEETH + PIN_TEETH) * FG_MODULE / 2            # 39
-TUBE_D = 8.0
+TUBE_D = 6.35          # 1/4" feed tube OD (the hub clamps the bare tube)
 TUBE_CLEAR = 0.4        # slip fit so the feed tube slides into the bore (set screw clamps it)
 
 # ── bend actuator (pancake + micro-cycloidal) ───────────────────────
@@ -80,7 +80,8 @@ FH_PT = 5.0            # plate thickness (x = 0 .. FH_PT)
 FH_BOSS_UP = 3.0       # boss sticks up this much past the plates
 FH_BOSS_X1 = FH_PT + FH_BOSS_UP        # 8 — boss top (set screw at the 4mm mid)
 FH_SET_X = 4.0         # set screw at x=4 (middle of the 8mm clamp)
-FH_HUB_OD = 16.0       # tube-clamp boss Ø
+FH_HUB_OD = 13.0       # tube-clamp boss Ø (sized for the 1/4" tube + M3 set screw wall)
+FH_SS_FACE = 9.0       # +Y set-screw boss outer face (gives the M3 insert full depth)
 FH_BEND_ZC = 21.0      # bending-plate slot centre (Z, above the boss)
 
 # ── tube clamp hub ──────────────────────────────────────────────────
@@ -210,10 +211,13 @@ def flat_head():
     rotp = Pos(FH_PT / 2, 0, -MESH_R) * Box(FH_PT, NEMA + 2, NEMA + 2)  # rotation NEMA plate (below)
     rneck = Pos(FH_PT / 2, 0, -10.5) * Box(FH_PT, 16, 13)              # neck boss->rot plate (z -17..-4)
     bendp = Pos(FH_PT / 2, 0, FH_BEND_ZC) * Box(FH_PT, 2 * BMNT_SLOT_Y + 16, 34)  # bending plate (z 4..38)
+    # small +Y set-screw boss so the M3 insert gets full depth without a bigger hub
     body = boss + rotp + rneck + bendp
+    body += Pos(FH_SET_X, (3 + FH_SS_FACE) / 2, 0) * Box(7, FH_SS_FACE - 3, 6)   # y 3..9, z ±3
     body -= xcyl(TUBE_D + TUBE_CLEAR, -1, FH_BOSS_X1 + 1, 0, 0)         # tube bore (slip fit)
-    # +Y radial M3 heat-set set screw at x=FH_SET_X, penetrating into the bore
-    body -= ycyl(IFACE_INS_D, TUBE_D / 2 - 2, FH_HUB_OD / 2 + 1, x=FH_SET_X)
+    # +Y M3 set screw: heat-set insert seat (clear of the bore) + grub clearance to the tube
+    body -= ycyl(IFACE_INS_D, FH_SS_FACE - IFACE_INS_H, FH_SS_FACE + 1, x=FH_SET_X)   # insert y=4..10
+    body -= ycyl(3.0, 0, FH_SS_FACE - IFACE_INS_H + 0.5, x=FH_SET_X)                  # grub -> tube
     # rotation NEMA17 slots (bored along X, elongated ±ROT_SLOT in Z for gear mesh)
     body -= Pos(FH_PT / 2, 0, -MESH_R) * Rot(0, 90, 0) * _slot(PILOT_CLEAR, ROT_SLOT, FH_PT + 2)
     for sy in (NEMA_BOLT / 2, -NEMA_BOLT / 2):
