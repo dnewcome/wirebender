@@ -1,48 +1,79 @@
-"""arbor_mount.py — a version of the cyclo actuator BODY (Housing_v1) with 4
-standoff posts + M3 heat-set inserts, to mount a bending plate onto it.
+"""arbor_mount.py — vendor cyclo ring (Housing_v1) + a fused 4-bolt post pattern.
 
-The housing is a 42x42 can, solid only at its corners (the centre is the cycloid
-mechanism), so 4 posts stand off the OUTPUT-end face at the corners, each with an
-M3 heat-set insert at its top; the bending plate bolts down onto the post tops.
+The whole part is 3D-printed. We take the vendor Housing_v1 geometry and fuse on a
+4-bolt mounting pattern: four posts that stick OUT radially past the ring OD and
+stand 2mm PROUD of the part's top face, each tied back to the ring by a short rib
+and carrying an M3 heat-set insert (open at the top). A bending plate bolts down
+onto the four posts.
 
-Imports the vendor Housing_v1 from the cyclo STEP (slow ~200s; B-rep, so build123d
-booleans cleanly). Vendor geometry is NOT committed.
+Robustness/speed notes (this part fought us for many iterations):
+  * The union is done with trimesh + manifold3d (like bend_plate.py), NOT OCC —
+    OCC intermittently refuses to merge overlapping solids fused onto the imported
+    vendor B-rep. Manifold always merges overlapping meshes.
+  * The vendor mesh is CACHED (build/_housing.stl). The slow ~200s STEP import runs
+    only once, to seed the cache; after that iterations are seconds.
 
     py/bin/python cad/arbor_mount.py   ->  build/arbor_mount.stl
 """
+import math
 import os
-from build123d import *
+import sys
 
-CYCLO_STEP = os.path.expanduser(
-    "~/Downloads/cad-files/sweepdynamics/micro-cycloidal/20-1 Micro Cycloidal.step")
+import trimesh
+from trimesh.transformations import rotation_matrix as _rotm, translation_matrix as _trm
 
-POST_SQ = 16.0         # posts at (±POST_SQ, ±POST_SQ) -> a 32mm square, on the corner walls
-POST_OD = 7.0          # standoff post Ø
-POST_H = 6.0           # standoff height (gap from the output face to the bending plate)
-INSERT_D, INSERT_H = 4.6, 5.0      # M3 heat-set insert (in from the post top)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from housing import housing_mesh          # vendor Housing_v1 extracted from the assembly STEP
+
+BOLT_R = 26.0           # bolt-circle radius — posts stick out radially past the ring OD (~20.5)
+POST_OD = 8.0           # post Ø
+PROUD = 4.0             # posts stand this far above the part's top face (2mm base + 2mm extra clearance)
+POST_DROP = 4.0         # post also drops this far below the face (body for the insert + rib bond)
+RIB_IN = 21.75          # rib inner reach: into the wall (r17.2..20.5) but clear of the bore (r<18.5)
+RIB_W = 9.0             # rib width (tangential)
+INSERT_D, INSERT_H = 4.6, 5.0     # M3 heat-set insert, open at the post top
+ANGLES = (45, 135, 225, 315)      # 4-bolt square pattern, off the feature axes
+
+
+def _cyl(radius, h, x, y, zc):
+    return trimesh.creation.cylinder(radius=radius, height=h, sections=72,
+                                     transform=_trm([x, y, zc]))
+
+
+def _radial_box(lx, ly, lz, r_mid, ang, zc):
+    c, s = math.cos(math.radians(ang)), math.sin(math.radians(ang))
+    T = _trm([r_mid * c, r_mid * s, zc]) @ _rotm(math.radians(ang), [0, 0, 1])
+    return trimesh.creation.box([lx, ly, lz], transform=T)
 
 
 def arbor_mount():
-    if not os.path.exists(CYCLO_STEP):
-        raise SystemExit(f"cyclo STEP missing: {CYCLO_STEP} (vendor, not redistributed)")
-    s = import_step(CYCLO_STEP)
-    h = [c for c in s.children if c.label == "Housing_v1"][0]
-    bb = h.bounding_box()
-    h = Pos(-bb.center().X, -bb.center().Y, -bb.min.Z) * h       # centre XY; output end up (+Z)
-    top = h.bounding_box().max.Z
-    for sx in (POST_SQ, -POST_SQ):
-        for sy in (POST_SQ, -POST_SQ):
-            h += Pos(sx, sy, top - 1) * Cylinder(          # standoff post; overlap 1mm into the wall to fuse
-                POST_OD / 2, POST_H + 1, align=(Align.CENTER, Align.CENTER, Align.MIN))
-            h -= Pos(sx, sy, top + POST_H - INSERT_H) * Cylinder(   # M3 insert, in from the post top
-                INSERT_D / 2, INSERT_H + 0.1, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    return h
+    h = housing_mesh()
+    face = h.bounds[1][2]                       # top face of the ring
+    top = face + PROUD                          # post tops, 2mm proud
+    zc = (top + face - POST_DROP) / 2           # post/rib mid-Z
+    post_h = PROUD + POST_DROP
+
+    adds, holes = [h], []
+    for a in ANGLES:
+        c, s = math.cos(math.radians(a)), math.sin(math.radians(a))
+        x, y = BOLT_R * c, BOLT_R * s
+        adds.append(_cyl(POST_OD / 2, post_h, x, y, zc))                 # post (out at BOLT_R)
+        adds.append(_radial_box(BOLT_R - RIB_IN + 2, RIB_W, post_h,      # rib: ring wall -> post
+                                (RIB_IN + BOLT_R) / 2, a, zc))
+        holes.append(_cyl(INSERT_D / 2, INSERT_H + 0.2, x, y, top - (INSERT_H + 0.2) / 2 + 0.05))
+
+    part = trimesh.boolean.union(adds, engine="manifold")
+    part = trimesh.boolean.difference([part] + holes, engine="manifold")
+    return part, face
 
 
 if __name__ == "__main__":
     os.makedirs("build", exist_ok=True)
-    part = arbor_mount()
-    export_stl(part, "build/arbor_mount.stl")
-    bb = part.bounding_box()
-    print("arbor_mount (Housing_v1 + 4 corner standoff posts):", [round(v, 1) for v in bb.size],
-          f"| posts ±{POST_SQ}mm square, {POST_H}mm tall, M3 inserts | solids:", len(part.solids()))
+    part, face = arbor_mount()
+    if not part.is_watertight:
+        part.merge_vertices(); trimesh.repair.fix_winding(part); trimesh.repair.fill_holes(part)
+    part.export("build/arbor_mount.stl")
+    b = part.bounds
+    print(f"arbor_mount: ring + 4-bolt pattern  bbox {[round(v,1) for v in (b[1]-b[0])]}"
+          f"  bolt-circle Ø{2*BOLT_R}  posts {PROUD}mm proud of face z={face:.1f}"
+          f"  M3 inserts  bodies:{len(part.split(only_watertight=False))}  watertight:{part.is_watertight}")

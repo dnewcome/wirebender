@@ -4,7 +4,7 @@ Assembles the machine from the PRINTABLE part STLs (what you actually print) plu
 clearly-separated REFERENCE meshes for the purchased parts:
 
     printable:  base.stl (deck+uprights+gear+spacer), rothead.stl (head bracket),
-                pinion.stl (rotation pinion), bend_endcap.stl (bend die + pin)
+                pinion.stl (rotation pinion), bend_plate + arbor_mount + end_cap (bend cell)
     reference:  head_refs.stl (NEMA motor bodies + cycloid drive — bought, not printed)
 
 The head rotates about the wire axis (Axis 2 = tube_rot); the pinion is a child of
@@ -23,9 +23,9 @@ MESH.mkdir(parents=True, exist_ok=True)
 for src, dst in [("build/base.stl", "base.stl"),              # printable
                  ("build/rothead.stl", "head.stl"),           # printable (flat head)
                  ("build/pinion.stl", "pinion.stl"),          # printable (animated, meshes the gear)
-                 ("build/bend_endcap.stl", "benddie.stl"),    # bend die + pin (rotating output)
-                 ("build/arbor_mount.stl", "arbor_mount.stl"), # cyclo housing + posts (bend body)
-                 ("build/bend_plate.stl", "bend_plate.stl"),  # cyclo base + boss (bend mount)
+                 ("build/arbor_mount.stl", "arbor_mount.stl"), # rotating cyclo housing + posts (output)
+                 ("build/end_cap.stl", "end_cap.stl"),         # turned-down cyclo end cap (on the arbor)
+                 ("build/bend_plate.stl", "bend_plate.stl"),  # cyclo base + boss (fixed; motor on its back)
                  ("build/head_refs.stl", "head_refs.stl"),    # REFERENCE: motors (purchased)
                  ("build/feeder_body.stl", "feeder.stl")]:    # reference primitive
     shutil.copy(ROOT / src, MESH / dst)
@@ -39,6 +39,22 @@ FEEDER_Z = ZAXIS                  # feeder output (mesh mid-Z) on the wire axis
 # (quat 0.70711 0 0.70711 0) lays the pinion's native +Z gear axis along the wire axis X.
 PIN_X, PIN_Z = PINION_MOUNT_X / 1000.0, -MESH_R / 1000.0
 
+# bend-actuator stack (head frame). Cyclo/bend axis = head +Z at (BX, BY), motor-side UP
+# (matches rothead's bend reference: output near the wire at OUT_Z=8mm, input/motor face up
+# near BEND_MOTOR_Z=40mm). bend_plate is FIXED to the head — its NEMA back faces the bend
+# motor at the top, its round boss faces down. The cyclo housing (arbor_mount) + end_cap are
+# the ROTATING output on the bend joint, hung on that boss with the posts pointing DOWN (away
+# from the plate, toward the wire) and the end_cap capping the posts at the bottom. The printed
+# parts are flipped 180° about X (FLIP) so their local +Z (away from the motor) points to head -Z.
+#   bend_plate: motor-back z=-2.8mm, round boss-top z=+9.0mm (local)
+#   arbor_mount: base z=0, ring top face z=18.2mm, posts proud to z=20.2mm (local)
+#   end_cap:    base z=0, height 6.5mm (local), sits on the arbor ring top face
+FLIP  = "0 1 0 0"                # 180° about X: a part's local +Z -> head -Z (motor-side up)
+ZBOSS = 0.030                    # head-frame Z of the boss mating plane (bend_plate boss-top = arbor base)
+BP_Z  = ZBOSS + 0.009            # bend_plate (flipped) origin so its boss-top (local 9mm) lands on ZBOSS
+EC_Z  = 0.0182                   # end_cap base offset from the arbor ring top face (local z=18.2mm)
+EC_HEAD_Z = ZBOSS - EC_Z         # end_cap is FIXED (does NOT rotate); head-frame origin so it caps the arbor top
+
 XML = f"""<mujoco model="wirebender">
   <compiler angle="radian" meshdir="meshes"/>
   <option gravity="0 0 -9.81"/>
@@ -50,8 +66,8 @@ XML = f"""<mujoco model="wirebender">
     <mesh name="base" file="base.stl" scale="0.001 0.001 0.001"/>
     <mesh name="head" file="head.stl" scale="0.001 0.001 0.001"/>
     <mesh name="pinion" file="pinion.stl" scale="0.001 0.001 0.001"/>
-    <mesh name="benddie" file="benddie.stl" scale="0.001 0.001 0.001"/>
     <mesh name="arbor_mount" file="arbor_mount.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="end_cap" file="end_cap.stl" scale="0.001 0.001 0.001"/>
     <mesh name="bend_plate" file="bend_plate.stl" scale="0.001 0.001 0.001"/>
     <mesh name="head_refs" file="head_refs.stl" scale="0.001 0.001 0.001"/>
     <mesh name="feeder" file="feeder.stl" scale="0.001 0.001 0.001"/>
@@ -70,13 +86,13 @@ XML = f"""<mujoco model="wirebender">
       <geom type="mesh" mesh="head" pos="0 0 0" rgba="0.86 0.6 0.2 1" contype="0" conaffinity="0"/>
       <!-- purchased parts: motors, shown for context (not animated internally) -->
       <geom type="mesh" mesh="head_refs" pos="0 0 0" rgba="0.42 0.46 0.54 1" contype="0" conaffinity="0"/>
-      <!-- bend actuator (APPROX placement, pending the arbor/reach design): cyclo housing
-           + posts (arbor_mount) with the output/posts toward the wire, and the cyclo base
-           + boss (bend_plate) above it -->
-      <geom type="mesh" mesh="arbor_mount" pos="{BX} {BY} 0.026" quat="0 1 0 0"
+      <!-- bend actuator, FIXED parts: cyclo base + boss (bend_plate; motor bolts to its
+           back) and the turned-down end_cap. The end_cap stays fixed and caps the output
+           on the bend axis; the rotating arbor_mount posts sweep around its turned-down OD. -->
+      <geom type="mesh" mesh="bend_plate" pos="{BX} {BY} {BP_Z}" quat="{FLIP}"
             rgba="0.5 0.7 0.55 1" contype="0" conaffinity="0"/>
-      <geom type="mesh" mesh="bend_plate" pos="{BX} {BY} 0.030" rgba="0.5 0.7 0.55 1"
-            contype="0" conaffinity="0"/>
+      <geom type="mesh" mesh="end_cap" pos="{BX} {BY} {EC_HEAD_Z}" quat="{FLIP}"
+            rgba="0.95 0.5 0.15 1" contype="0" conaffinity="0"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="2e-4 2e-4 2e-4"/>
       <!-- Axis 2b: rotation pinion, spins as the head rolls -> meshes the fixed gear -->
       <body name="pinion" pos="{PIN_X} 0 {PIN_Z}" quat="0.70711 0 0.70711 0">
@@ -84,11 +100,13 @@ XML = f"""<mujoco model="wirebender">
         <geom type="mesh" mesh="pinion" pos="0 0 0" rgba="0.80 0.82 0.30 1" contype="0" conaffinity="0"/>
         <inertial pos="0 0 0" mass="0.02" diaginertia="2e-6 2e-6 2e-6"/>
       </body>
-      <!-- Axis 3: bend die (cycloidal output + pin) about the bend axis -->
-      <body name="benddie" pos="{BX} {BY} {BZ}">
+      <!-- Axis 3: cyclo output about the bend axis = rotating arbor_mount (housing + 4
+           posts). The posts sweep around the fixed end_cap; the bend-pin part that bolts
+           to the posts isn't designed yet, so the "pin" site is a placeholder so the bend
+           actuator/animation still resolve. -->
+      <body name="benddie" pos="{BX} {BY} {ZBOSS}" quat="{FLIP}">
         <joint name="bend" type="hinge" axis="0 0 1" range="-3.2 3.2"/>
-        <geom type="mesh" mesh="benddie" pos="0 0 0" rgba="0.95 0.5 0.15 1" contype="0" conaffinity="0"/>
-        <!-- bending-pin tip = mesh pin tip (15,0,15.5), no flip (die body points +Z, clear of the tube) -->
+        <geom type="mesh" mesh="arbor_mount" pos="0 0 0" rgba="0.5 0.7 0.55 1" contype="0" conaffinity="0"/>
         <site name="pin" pos="0.015 0 0.0155" size="0.0025" rgba="1 0.1 0.1 1"/>
         <inertial pos="0 0 0" mass="0.05" diaginertia="2e-5 2e-5 2e-5"/>
       </body>

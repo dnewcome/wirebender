@@ -28,7 +28,8 @@ import rothead as R
 CYC_BASE_STL = R.CYC_BASE_STL
 INSERT_D, INSERT_H = R.IFACE_INS_D, R.IFACE_INS_H   # 4.6 hole, 5 deep
 BOLT_SP = 2 * R.BMNT_SLOT_Y    # 16 — match bend_piece's 2 slots (y = ±8)
-BOSS_OUT = 8.0                 # how far the boss mounting face sits beyond the plate edge
+BOSS_OUT = 11.0                # how far the boss mounting face sits beyond the plate edge
+                               #   (was 8.0; +3mm to push the insert face clear of the turned-down end cap)
 BOSS_W = BOLT_SP + 12          # 28 — boss width (Y): the 2 inserts at ±8 + margin
 BOSS_BOND = 3.0                # overlap back into the plate so the boss fuses to the wall
 

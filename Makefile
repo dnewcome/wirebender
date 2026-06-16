@@ -33,11 +33,17 @@ build/feeder_gear.stl: cad/feeder_gear.py cad/base.py cad/gears.py
 	$(PY) cad/feeder_gear.py
 build/bend_plate.stl: cad/bend_plate.py cad/rothead.py cad/parts.py
 	$(PY) cad/bend_plate.py
-build/arbor_mount.stl: cad/arbor_mount.py
-	$(PY) cad/arbor_mount.py            # slow; needs the purchased Sweep Dynamics STEP
+build/housing.stl: cad/housing.py
+	$(PY) cad/housing.py               # vendor Housing_v1 (cyclo ring) extracted from the assembly STEP
+build/arbor_mount.stl: cad/arbor_mount.py cad/housing.py
+	$(PY) cad/arbor_mount.py            # housing (cached from the STEP) + fused 4-bolt posts
+build/end_cap.stl: cad/end_cap.py
+	$(PY) cad/end_cap.py                # cyclo End_Cap rebuilt clean (watertight), flange turned down 2mm
+build/bend_disc.stl: cad/bend_disc.py cad/arbor_mount.py
+	$(PY) cad/bend_disc.py             # bend-pin disc that bolts to the arbor posts
 
 # printable parts the sim assembles + reference meshes (motors/cyclo, feeder)
-PARTS := build/base.stl build/rothead.stl build/pinion.stl build/bend_endcap.stl \
+PARTS := build/base.stl build/rothead.stl build/pinion.stl build/end_cap.stl \
          build/arbor_mount.stl build/bend_plate.stl \
          build/head_refs.stl build/feeder_body.stl
 
@@ -91,7 +97,13 @@ feeder-gear: build/feeder_gear.stl ## feeder stepper gear (11T m0.8, 5mm D-bore 
 
 bend-plate: build/bend_plate.stl   ## vendor cyclo base + flange-flush side boss w/ 2 M3 inserts (needs the vendor STL)
 
-arbor-mount: build/arbor_mount.stl ## cyclo housing + 4 corner standoff posts w/ M3 inserts (needs the vendor STEP)
+housing: build/housing.stl          ## vendor cyclo Housing_v1 (rotating internal-gear ring) extracted from the STEP
+
+arbor-mount: build/arbor_mount.stl ## cyclo ring + fused 4-bolt post pattern (radial, 4mm proud, M3 inserts)
+
+end-cap: build/end_cap.stl          ## vendor cyclo End_Cap (FIXED), OD turned down 2mm to clear the mounts (replaces bend_endcap)
+
+bend-disc: build/bend_disc.stl      ## Ø60x2 disc bolting to the arbor posts; csk M3 mounts + centre/10mm bend-pin holes
 
 vendor: build/cyclo_body.stl       ## re-bake the cycloidal envelope (slow)
 
