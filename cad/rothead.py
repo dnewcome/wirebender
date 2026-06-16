@@ -226,21 +226,24 @@ def flat_head():
 
 
 def build_head():
-    return Compound(children=[rot_piece(), bend_piece()])
+    return Compound(children=[flat_head()])
 
 
 PINION_MOUNT_X = 2.0       # pinion centre X in the head frame (on the rotation-motor shaft)
 
 
 def ghosts(motors=True, pinion_part=True):
-    """Reference placements around the head. The sim no longer bakes the motors or
-    pinion into head.stl (the pinion is animated as its own meshing body, the motor
-    internals aren't visualized) — pass motors/pinion_part=False to omit them."""
-    g = {"cyclo_base": cyclo_base()}                          # structural bend-head body
+    """Reference placements around the FLAT head. The rotation motor + pinion sit on
+    the rotation NEMA plate (z=-MESH_R); the bend actuator (cyclo + pancake + die) is
+    at the bend point out front. NOTE: how the bend actuator REACHES from the bending
+    plate (at the boss) forward to the bend point is the bend_plate/arbor you're
+    still designing — that reach isn't visualized here."""
+    g = {"cyclo_base": cyclo_base()}                          # bend drive body (at the bend point)
     if motors:
-        # pancake mounts on the base's NEMA face (top), shaft down into the cycloid
+        # bend pancake on the cyclo input face (at the bend point, out front)
         g["bend_pancake"] = Pos(BEND_X, BEND_Y, OUT_Z + CYC_BASE_T) * Rot(180, 0, 0) * nema17(depth=PANCAKE_D, shaft_len=18)
-        g["rot_pancake"] = Pos(ROT_X, 0, -MESH_R) * Rot(0, 90, 0) * nema17(depth=PANCAKE_D, shaft_len=14)
+        # rotation pancake on the flat head's rotation NEMA plate (face at x=0, shaft +X)
+        g["rot_pancake"] = Pos(0, 0, -MESH_R) * Rot(0, 90, 0) * nema17(depth=PANCAKE_D, shaft_len=14)
     if pinion_part:
         g["pinion"] = Pos(PINION_MOUNT_X, 0, -MESH_R) * Rot(0, 90, 0) * pinion()
     return g

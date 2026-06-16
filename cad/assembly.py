@@ -32,7 +32,7 @@ FEEDER_STL = "build/feeder_body.stl"
 
 def _head(with_motors):
     """Head sub-assembly in its local frame (wire axis at the origin)."""
-    children = [H.rot_piece(), H.bend_piece()]
+    children = [H.flat_head()]
     if with_motors:                                   # cycloid base + pancakes + pinion
         children += list(H.ghosts().values())
     return Compound(children=children)
