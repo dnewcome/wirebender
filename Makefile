@@ -36,6 +36,7 @@ build/arbor_mount.stl: cad/arbor_mount.py
 
 # printable parts the sim assembles + reference meshes (motors/cyclo, feeder)
 PARTS := build/base.stl build/rothead.stl build/pinion.stl build/bend_endcap.stl \
+         build/arbor_mount.stl build/bend_plate.stl \
          build/head_refs.stl build/feeder_body.stl
 
 # ── MuJoCo model (parts -> wirebender.xml + meshes) ─────────────────

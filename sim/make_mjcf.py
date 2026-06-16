@@ -21,10 +21,12 @@ ROOT = Path(__file__).resolve().parent.parent
 MESH = ROOT / "sim" / "meshes"
 MESH.mkdir(parents=True, exist_ok=True)
 for src, dst in [("build/base.stl", "base.stl"),              # printable
-                 ("build/rothead.stl", "head.stl"),           # printable (rot+bend pieces)
+                 ("build/rothead.stl", "head.stl"),           # printable (flat head)
                  ("build/pinion.stl", "pinion.stl"),          # printable (animated, meshes the gear)
-                 ("build/bend_endcap.stl", "benddie.stl"),    # bend die + pin
-                 ("build/head_refs.stl", "head_refs.stl"),    # REFERENCE: motors + cyclo (purchased)
+                 ("build/bend_endcap.stl", "benddie.stl"),    # bend die + pin (rotating output)
+                 ("build/arbor_mount.stl", "arbor_mount.stl"), # cyclo housing + posts (bend body)
+                 ("build/bend_plate.stl", "bend_plate.stl"),  # cyclo base + boss (bend mount)
+                 ("build/head_refs.stl", "head_refs.stl"),    # REFERENCE: motors (purchased)
                  ("build/feeder_body.stl", "feeder.stl")]:    # reference primitive
     shutil.copy(ROOT / src, MESH / dst)
 
@@ -49,6 +51,8 @@ XML = f"""<mujoco model="wirebender">
     <mesh name="head" file="head.stl" scale="0.001 0.001 0.001"/>
     <mesh name="pinion" file="pinion.stl" scale="0.001 0.001 0.001"/>
     <mesh name="benddie" file="benddie.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="arbor_mount" file="arbor_mount.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="bend_plate" file="bend_plate.stl" scale="0.001 0.001 0.001"/>
     <mesh name="head_refs" file="head_refs.stl" scale="0.001 0.001 0.001"/>
     <mesh name="feeder" file="feeder.stl" scale="0.001 0.001 0.001"/>
   </asset>
@@ -64,8 +68,15 @@ XML = f"""<mujoco model="wirebender">
     <body name="head" pos="0 0 {ZAXIS}">
       <joint name="tube_rot" type="hinge" axis="1 0 0" range="-1.6 1.6"/>
       <geom type="mesh" mesh="head" pos="0 0 0" rgba="0.86 0.6 0.2 1" contype="0" conaffinity="0"/>
-      <!-- purchased parts: shown for context (motors + cyclo), not animated internally -->
+      <!-- purchased parts: motors, shown for context (not animated internally) -->
       <geom type="mesh" mesh="head_refs" pos="0 0 0" rgba="0.42 0.46 0.54 1" contype="0" conaffinity="0"/>
+      <!-- bend actuator (APPROX placement, pending the arbor/reach design): cyclo housing
+           + posts (arbor_mount) with the output/posts toward the wire, and the cyclo base
+           + boss (bend_plate) above it -->
+      <geom type="mesh" mesh="arbor_mount" pos="{BX} {BY} 0.026" quat="0 1 0 0"
+            rgba="0.5 0.7 0.55 1" contype="0" conaffinity="0"/>
+      <geom type="mesh" mesh="bend_plate" pos="{BX} {BY} 0.030" rgba="0.5 0.7 0.55 1"
+            contype="0" conaffinity="0"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="2e-4 2e-4 2e-4"/>
       <!-- Axis 2b: rotation pinion, spins as the head rolls -> meshes the fixed gear -->
       <body name="pinion" pos="{PIN_X} 0 {PIN_Z}" quat="0.70711 0 0.70711 0">

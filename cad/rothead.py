@@ -45,6 +45,7 @@ OUT_Z = 8.0                         # cycloidal output face height above the wir
 CYC_BODY_H = 23.3                   # real cycloidal envelope height (output->input), from gen_vendor
 BEND_PLATE_Z = OUT_Z + CYC_BODY_H   # cycloid INPUT/motor face (top) — head hangs below it
 CYC_BASE_T = 9.0                    # nema-17-cycloid-base.stl thickness (NEMA face <-> bearing boss)
+BEND_MOTOR_Z = BEND_PLATE_Z + CYC_BASE_T   # bend pancake input face (top of the bend stack)
 CYC_BASE_STL = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                             "nema-17-cycloid-base.stl")
 
@@ -242,10 +243,10 @@ def ghosts(motors=True, pinion_part=True):
     at the bend point out front. NOTE: how the bend actuator REACHES from the bending
     plate (at the boss) forward to the bend point is the bend_plate/arbor you're
     still designing — that reach isn't visualized here."""
-    g = {"cyclo_base": cyclo_base()}                          # bend drive body (at the bend point)
+    g = {}                                                    # cyclo body now shown via arbor_mount.stl (sim)
     if motors:
-        # bend pancake on the cyclo input face (at the bend point, out front)
-        g["bend_pancake"] = Pos(BEND_X, BEND_Y, OUT_Z + CYC_BASE_T) * Rot(180, 0, 0) * nema17(depth=PANCAKE_D, shaft_len=18)
+        # bend pancake on the cyclo input face (top of the bend stack), shaft DOWN into the cyclo
+        g["bend_pancake"] = Pos(BEND_X, BEND_Y, BEND_MOTOR_Z) * Rot(180, 0, 0) * nema17(depth=PANCAKE_D, shaft_len=6)
         # rotation pancake on the flat head's rotation NEMA plate (face at x=0, shaft +X)
         g["rot_pancake"] = Pos(0, 0, -MESH_R) * Rot(0, 90, 0) * nema17(depth=PANCAKE_D, shaft_len=14)
     if pinion_part:
