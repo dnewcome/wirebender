@@ -71,6 +71,18 @@ BMNT_SLOT_Y = 8.0              # the 2 vertical slots at ±Y
 BMNT_Z_TOP = MESH_R + 3        # top of the mount (up the same distance the rot motor drops)
 BMNT_SLOT_Z = 28.0            # slot centre height
 
+# ── flat head (the simpler single printable part) ───────────────────
+# Two coplanar slotted plates (rotation NEMA mount below at -MESH_R, bending mount
+# above) joined by a central tube-clamp boss that sticks up FH_BOSS_UP above the
+# FH_PT-thick plates. Radial M3 set screw at x=FH_SET_X (mid of the boss). Prints
+# flat on its x=0 face; wire/tube axis = X (the boss bore).
+FH_PT = 5.0            # plate thickness (x = 0 .. FH_PT)
+FH_BOSS_UP = 3.0       # boss sticks up this much past the plates
+FH_BOSS_X1 = FH_PT + FH_BOSS_UP        # 8 — boss top (set screw at the 4mm mid)
+FH_SET_X = 4.0         # set screw at x=4 (middle of the 8mm clamp)
+FH_HUB_OD = 16.0       # tube-clamp boss Ø
+FH_BEND_ZC = 21.0      # bending-plate slot centre (Z, above the boss)
+
 # ── tube clamp hub ──────────────────────────────────────────────────
 # Short (8mm) boss on the bend-head/attachment end of the tube (its old long -X
 # protrusion fouled the rotation motor). Clamped by a radial M3 heat-set insert +
@@ -188,6 +200,31 @@ def bend_piece():
     return b
 
 
+def flat_head():
+    """Simpler flat-printing head: two COPLANAR slotted plates (rotation NEMA17
+    mount below at z=-MESH_R, bending mount above) joined by a central tube-clamp
+    boss that sticks up FH_BOSS_UP past the FH_PT-thick plates, with a radial M3
+    heat-set set screw at x=FH_SET_X. Prints flat on its x=0 face; wire/tube axis = X.
+    The plates connect to the boss above/below z=0, leaving the +Y set screw clear."""
+    boss = xcyl(FH_HUB_OD, 0.0, FH_BOSS_X1, 0, 0)                       # tube-clamp boss along X
+    rotp = Pos(FH_PT / 2, 0, -MESH_R) * Box(FH_PT, NEMA + 2, NEMA + 2)  # rotation NEMA plate (below)
+    rneck = Pos(FH_PT / 2, 0, -10.5) * Box(FH_PT, 16, 13)              # neck boss->rot plate (z -17..-4)
+    bendp = Pos(FH_PT / 2, 0, FH_BEND_ZC) * Box(FH_PT, 2 * BMNT_SLOT_Y + 16, 34)  # bending plate (z 4..38)
+    body = boss + rotp + rneck + bendp
+    body -= xcyl(TUBE_D + TUBE_CLEAR, -1, FH_BOSS_X1 + 1, 0, 0)         # tube bore (slip fit)
+    # +Y radial M3 heat-set set screw at x=FH_SET_X, penetrating into the bore
+    body -= ycyl(IFACE_INS_D, TUBE_D / 2 - 2, FH_HUB_OD / 2 + 1, x=FH_SET_X)
+    # rotation NEMA17 slots (bored along X, elongated ±ROT_SLOT in Z for gear mesh)
+    body -= Pos(FH_PT / 2, 0, -MESH_R) * Rot(0, 90, 0) * _slot(PILOT_CLEAR, ROT_SLOT, FH_PT + 2)
+    for sy in (NEMA_BOLT / 2, -NEMA_BOLT / 2):
+        for sz in (NEMA_BOLT / 2, -NEMA_BOLT / 2):
+            body -= Pos(FH_PT / 2, sy, -MESH_R + sz) * Rot(0, 90, 0) * _slot(M3_CLEAR, ROT_SLOT, FH_PT + 2)
+    # bending plate 2 slots (bored along X, elongated ±BMNT_SLOT in Z for mandrel height)
+    for sy in (BMNT_SLOT_Y, -BMNT_SLOT_Y):
+        body -= Pos(FH_PT / 2, sy, FH_BEND_ZC) * Rot(0, 90, 0) * _slot(M3_CLEAR, BMNT_SLOT, FH_PT + 2)
+    return body
+
+
 def build_head():
     return Compound(children=[rot_piece(), bend_piece()])
 
@@ -211,15 +248,10 @@ def ghosts(motors=True, pinion_part=True):
 
 if __name__ == "__main__":
     os.makedirs("build", exist_ok=True)
-    rot, bend = rot_piece(), bend_piece()
-    export_stl(rot, "build/rothead_rot.stl")       # piece 1: clamp + rotation motor (flat print)
-    export_stl(bend, "build/rothead_bend.stl")     # piece 2: cycloid mount, slotted (flat print)
-    head = Compound(children=[rot, bend])
-    export_stl(head, "build/rothead.stl")          # both printable pieces (the sim head bracket)
+    head = flat_head()                             # single flat-printing part
+    export_stl(head, "build/rothead.stl")
     export_step(head, "build/rothead.step")
-    # The sim assembles printable STLs individually: rothead.stl (this), pinion.stl,
-    # base.stl, the bend die. Purchased parts (motors + cyclo) are exported as
-    # REFERENCE geometry by cad/head_refs.py — never fused into a printable STL here.
     bb = head.bounding_box()
-    print("printable head: rothead_rot.stl + rothead_bend.stl (rothead.stl bbox",
-          [round(v, 1) for v in (bb.size.X, bb.size.Y, bb.size.Z)], ")")
+    print("flat head: 2 coplanar slotted plates (NEMA mount + bending mount) + tube-clamp boss",
+          "| bbox", [round(v, 1) for v in (bb.size.X, bb.size.Y, bb.size.Z)],
+          f"| plates {FH_PT}mm, boss +{FH_BOSS_UP}mm, set screw at x={FH_SET_X}")

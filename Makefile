@@ -45,8 +45,8 @@ model: sim/wirebender.xml          ## regenerate the MuJoCo model
 parts: build/base.stl              ## (re)build the separately-printed base parts (plate/uprights/gear)
 	@echo "  build/: base_plate.stl  upright_front.stl  upright_rear.stl  gear.stl  sleeve.stl"
 
-head: build/rothead.stl build/head_refs.stl  ## (re)build the printable head pieces + reference motor/cyclo meshes
-	@echo "  printable: rothead_rot.stl  rothead_bend.stl  pinion.stl    reference: head_refs.stl (motors+cyclo)"
+head: build/rothead.stl build/head_refs.stl  ## (re)build the flat head + pinion + reference motor/cyclo meshes
+	@echo "  printable: rothead.stl (flat head: 2 slotted plates + tube boss)  pinion.stl    reference: head_refs.stl"
 
 proto: build/base_proto.stl        ## short/narrow front base section for fast gear+upright prototyping
 
