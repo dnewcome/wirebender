@@ -84,6 +84,9 @@ FH_SET_X = 4.0         # set screw at x=4 (middle of the 8mm clamp)
 FH_HUB_OD = 13.0       # tube-clamp boss Ø (sized for the 1/4" tube + M3 set screw wall)
 FH_SS_FACE = 9.0       # +Y set-screw boss outer face (gives the M3 insert full depth)
 FH_BEND_ZC = 21.0      # bending-plate slot centre (Z, above the boss)
+FH_BEND_LIFT = 12.0    # raise the bending plate/slots this far off the wire axis; a neck (same
+                       #   16x13 tab as the rotation rneck, mirrored up) bridges it back to the
+                       #   boss — clears the wire feed axis now the bending mandrel is attached
 
 # ── tube clamp hub ──────────────────────────────────────────────────
 # Short (8mm) boss on the bend-head/attachment end of the tube (its old long -X
@@ -211,10 +214,19 @@ def flat_head():
     boss = xcyl(FH_HUB_OD, 0.0, FH_BOSS_X1, 0, 0)                       # tube-clamp boss along X
     rotp = Pos(FH_PT / 2, 0, -MESH_R) * Box(FH_PT, NEMA + 2, NEMA + 2)  # rotation NEMA plate (below)
     rneck = Pos(FH_PT / 2, 0, -10.5) * Box(FH_PT, 16, 13)              # neck boss->rot plate (z -17..-4)
-    bendp = Pos(FH_PT / 2, 0, FH_BEND_ZC) * Box(FH_PT, 2 * BMNT_SLOT_Y + 16, 34)  # bending plate (z 4..38)
+    bzc = FH_BEND_ZC + FH_BEND_LIFT                                    # bending slot/plate centre, lifted
+    bendp = Pos(FH_PT / 2, 0, bzc) * Box(FH_PT, 2 * BMNT_SLOT_Y + 16, 34)  # bending plate (z 16..50)
+    bneck = Pos(FH_PT / 2, 0, 10.5) * Box(FH_PT, 16, 13)               # neck boss->bend plate (z 4..17),
+    #                                                                    mirror of rneck (rotation side)
+    # central web tying the two necks together across the middle — a solid flat spine through
+    # the centre, much stronger than relying on the round boss alone.
+    web = Pos(FH_PT / 2, 0, 0) * Box(FH_PT, 16, 16)                   # z -8..8, overlaps both necks + boss
     # small +Y set-screw boss so the M3 insert gets full depth without a bigger hub
-    body = boss + rotp + rneck + bendp
-    body += Pos(FH_SET_X, (3 + FH_SS_FACE) / 2, 0) * Box(7, FH_SS_FACE - 3, 6)   # y 3..9, z ±3
+    screw_boss = Pos(FH_SET_X, (3 + FH_SS_FACE) / 2, 0) * Box(7, FH_SS_FACE - 3, 6)  # y 3..9, z ±3
+    # ADD everything first (order keeps each union step connected: bneck bridges to bendp).
+    body = boss + rotp + rneck + bneck + bendp + web + screw_boss
+    # then CUT the bores LAST, through the assembled body INCLUDING the new web, so the tube
+    # bore and set screw pass cleanly through it.
     body -= xcyl(TUBE_D + TUBE_CLEAR, -1, FH_BOSS_X1 + 1, 0, 0)         # tube bore (slip fit)
     # +Y M3 set screw: heat-set insert seat (clear of the bore) + grub clearance to the tube
     body -= ycyl(IFACE_INS_D, FH_SS_FACE - IFACE_INS_H, FH_SS_FACE + 1, x=FH_SET_X)   # insert y=4..10
@@ -226,7 +238,7 @@ def flat_head():
             body -= Pos(FH_PT / 2, sy, -MESH_R + sz) * Rot(0, 90, 0) * _slot(M3_CLEAR, ROT_SLOT, FH_PT + 2)
     # bending plate 2 slots (bored along X, elongated ±BMNT_SLOT in Z for mandrel height)
     for sy in (BMNT_SLOT_Y, -BMNT_SLOT_Y):
-        body -= Pos(FH_PT / 2, sy, FH_BEND_ZC) * Rot(0, 90, 0) * _slot(M3_CLEAR, BMNT_SLOT, FH_PT + 2)
+        body -= Pos(FH_PT / 2, sy, bzc) * Rot(0, 90, 0) * _slot(M3_CLEAR, BMNT_SLOT, FH_PT + 2)
     return body
 
 
