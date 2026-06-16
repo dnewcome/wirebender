@@ -44,7 +44,7 @@ sim (`sim/`), and the CAD↔sim machine parameters live in one place
 
 ```bash
 python3 -m venv py
-./py/bin/pip install build123d gggears mujoco trimesh numpy pillow networkx
+./py/bin/pip install build123d gggears mujoco trimesh numpy pillow networkx manifold3d
 
 make parts     # base plate / uprights / fixed gear / spacer (printable STLs)
 make head      # printable head pieces (rot + bend) + pinion + reference meshes
