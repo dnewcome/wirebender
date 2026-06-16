@@ -82,7 +82,7 @@ sleeve: build/sleeve.stl           ## printed 1/4"-tube -> 608-bearing adapter (
 
 pinion: build/pinion.stl           ## stepper pinion (12T, 5mm D-bore + M3 set screw)
 
-bend-plate: build/bend_plate.stl   ## cyclo mounting plate w/ boss + 2 M3 inserts orthogonal to the face
+bend-plate: build/bend_plate.stl   ## flat cyclo mounting plate w/ 2 M3 inserts orthogonal to the face
 
 vendor: build/cyclo_body.stl       ## re-bake the cycloidal envelope (slow)
 
