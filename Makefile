@@ -29,6 +29,8 @@ build/sleeve.stl: cad/sleeve.py cad/base.py
 	$(PY) cad/sleeve.py
 build/pinion.stl: cad/pinion.py cad/base.py cad/gears.py
 	$(PY) cad/pinion.py
+build/feeder_gear.stl: cad/feeder_gear.py cad/base.py cad/gears.py
+	$(PY) cad/feeder_gear.py
 build/bend_plate.stl: cad/bend_plate.py cad/rothead.py cad/parts.py
 	$(PY) cad/bend_plate.py
 build/arbor_mount.stl: cad/arbor_mount.py
@@ -84,6 +86,8 @@ check-consistency:                 ## assert sim/machine.py matches the CAD cons
 sleeve: build/sleeve.stl           ## printed 1/4"-tube -> 608-bearing adapter (print x2)
 
 pinion: build/pinion.stl           ## stepper pinion (12T, 5mm D-bore + M3 set screw)
+
+feeder-gear: build/feeder_gear.stl ## feeder stepper gear (11T m0.8, 5mm D-bore + M3 set screw)
 
 bend-plate: build/bend_plate.stl   ## vendor cyclo base + flange-flush side boss w/ 2 M3 inserts (needs the vendor STL)
 
