@@ -34,9 +34,9 @@ build/feeder_gear.stl: cad/feeder_gear.py cad/base.py cad/gears.py
 build/bend_plate.stl: cad/bend_plate.py cad/rothead.py cad/parts.py
 	$(PY) cad/bend_plate.py
 build/housing.stl: cad/housing.py
-	$(PY) cad/housing.py               # vendor Housing_v1 (cyclo ring) extracted from the assembly STEP
+	$(PY) cad/housing.py               # parametric cyclo Housing (20-pin ring); no vendor STEP needed
 build/arbor_mount.stl: cad/arbor_mount.py cad/housing.py
-	$(PY) cad/arbor_mount.py            # housing (cached from the STEP) + fused 4-bolt posts
+	$(PY) cad/arbor_mount.py            # parametric housing + fused 4-bolt posts (OCC)
 build/end_cap.stl: cad/end_cap.py
 	$(PY) cad/end_cap.py                # cyclo End_Cap rebuilt clean (watertight), flange turned down 2mm
 build/bend_disc.stl: cad/bend_disc.py cad/arbor_mount.py
@@ -97,7 +97,7 @@ feeder-gear: build/feeder_gear.stl ## feeder stepper gear (11T m0.8, 5mm D-bore 
 
 bend-plate: build/bend_plate.stl   ## vendor cyclo base + flange-flush side boss w/ 2 M3 inserts (needs the vendor STL)
 
-housing: build/housing.stl          ## vendor cyclo Housing_v1 (rotating internal-gear ring) extracted from the STEP
+housing: build/housing.stl          ## parametric cyclo Housing (20-pin internal-gear ring; no vendor STEP)
 
 arbor-mount: build/arbor_mount.stl ## cyclo ring + fused 4-bolt post pattern (radial, 4mm proud, M3 inserts)
 
