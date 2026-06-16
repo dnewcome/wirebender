@@ -33,6 +33,10 @@ build/feeder_gear.stl: cad/feeder_gear.py cad/base.py cad/gears.py
 	$(PY) cad/feeder_gear.py
 build/feeder_gear_press.stl: cad/feeder_gear_press.py cad/gears.py
 	$(PY) cad/feeder_gear_press.py     # collar-less press-fit variant (no hub/set screw)
+build/feeder_motor_mount.stl: cad/feeder_motor_mount.py
+	$(PY) cad/feeder_motor_mount.py    # pivoting NEMA17 mount plate (mesh adjust); MEASURE housing holes
+build/nema_template.stl: cad/nema_template.py
+	$(PY) cad/nema_template.py         # thin NEMA17 drilling/marking template
 build/bend_plate.stl: cad/bend_plate.py cad/rothead.py cad/parts.py
 	$(PY) cad/bend_plate.py
 build/housing.stl: cad/housing.py
@@ -98,6 +102,10 @@ pinion: build/pinion.stl           ## stepper pinion (12T, 5mm D-bore + M3 set s
 feeder-gear: build/feeder_gear.stl ## feeder stepper gear (11T m0.8, 5mm D-bore + M3 set screw)
 
 feeder-gear-press: build/feeder_gear_press.stl ## collar-less PRESS-FIT feeder pinion (11T m0.8, D-bore, no set screw)
+
+feeder-motor-mount: build/feeder_motor_mount.stl ## pivoting NEMA17 plate to set gear mesh (pivot + countersunk arc slot)
+
+nema-template: build/nema_template.stl ## thin NEMA17 drilling/marking template (4-bolt + Ø22 pilot)
 
 bend-plate: build/bend_plate.stl   ## vendor cyclo base + flange-flush side boss w/ 2 M3 inserts (needs the vendor STL)
 
