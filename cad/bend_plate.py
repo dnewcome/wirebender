@@ -4,9 +4,13 @@ Mirrors 3dprint-robot/angle_mount's body_boss, but on the cyclo PLATE instead of
 the body: start from the REAL vendor cycloid NEMA base (nema-17-cycloid-base.stl,
 the same part rothead.cyclo_base imports) and EXTRUDE A BOSS off its side. Two M3
 heat-set inserts are drilled into the boss's outer FACE (horizontal, blind back) —
-NOT through the plate's broad face. It bolts to rothead.bend_piece's vertical
-slotted face: the inserts sit at the slot spacing (2*BMNT_SLOT_Y), and the slots
-give the ±BMNT_SLOT mandrel-height adjustment.
+NOT through the plate's broad face.
+
+The boss is a COPLANAR extension of the flat flange band only (z = 0 .. flange
+top), so it clears BOTH the motor mounted on the flat (NEMA) face underneath and
+the round cyclo body / output boss raised on the other face. It bolts to
+rothead.bend_piece's vertical slotted face: the inserts sit at the slot spacing
+(2*BMNT_SLOT_Y), and the slots give the ±BMNT_SLOT mandrel-height adjustment.
 
 The vendor base is only a mesh (STL) and OCC segfaults booleaning a tessellated
 import, so the union/cut is done with trimesh + manifold3d. Vendor STL not committed.
@@ -37,6 +41,15 @@ def _xcyl(d, x0, x1, y, z):
     return cyl
 
 
+def _flange_top(m, x):
+    """Top of the flat flange (solid from z=0 up to the first gap) at the +X edge."""
+    top = m.bounds[1][2]
+    z = 0.2
+    while z < top and m.contains([[x, 0.0, z]])[0]:
+        z += 0.2
+    return round(z - 0.2, 2)
+
+
 def bend_plate():
     if not os.path.exists(CYC_BASE_STL):
         raise SystemExit(f"vendor plate missing: {CYC_BASE_STL}\n"
@@ -44,22 +57,32 @@ def bend_plate():
     m = trimesh.load(CYC_BASE_STL)
     c = m.bounds.mean(axis=0)
     m.apply_translation([-c[0], -c[1], -m.bounds[0][2]])       # centre XY, base at z=0
-    edge_x, top_z = m.bounds[1][0], m.bounds[1][2]             # +X edge, plate top
+    edge_x = m.bounds[1][0]                                    # +X edge
     face_x = edge_x + BOSS_OUT
-    # boss extruded off the +X side (full plate thickness), fused to the plate wall
-    boss = trimesh.creation.box(extents=[face_x - (edge_x - BOSS_BOND), BOSS_W, top_z])
-    boss.apply_translation([((edge_x - BOSS_BOND) + face_x) / 2, 0, top_z / 2])
-    part = trimesh.boolean.union([m, boss], engine="manifold")
-    # 2 M3 heat-set inserts drilled -X into the boss FACE (horizontal, blind back)
-    zc = top_z / 2
+    flange = _flange_top(m, edge_x - 1.0)                      # flat band height (~4.8mm)
+    lip_z = INSERT_D + 3.0                                     # protruding-lip height (insert + wall)
+    # pad: coplanar flange extension across the whole boss footprint (z 0..flange) —
+    # flush with the flange where it bonds, so it clears the motor (under the flat
+    # face) and the round body (above the flange), both within the plate footprint.
+    pad_x0 = edge_x - BOSS_BOND
+    pad = trimesh.creation.box(extents=[face_x - pad_x0, BOSS_W, flange])
+    pad.apply_translation([(pad_x0 + face_x) / 2, 0, flange / 2])
+    # lip: the part that PROTRUDES past the plate edge is clear of both the motor and
+    # the round body, so make it taller (z 0..lip_z) to give the M3 insert real wall.
+    lip = trimesh.creation.box(extents=[BOSS_OUT, BOSS_W, lip_z])
+    lip.apply_translation([(edge_x + face_x) / 2, 0, lip_z / 2])
+    part = trimesh.boolean.union([m, pad, lip], engine="manifold")
+    # 2 M3 heat-set inserts drilled -X into the lip FACE (horizontal, blind back)
+    zc = lip_z / 2
     cuts = [_xcyl(INSERT_D, face_x - INSERT_H, face_x + 0.25, s * BOLT_SP / 2, zc) for s in (1, -1)]
-    return trimesh.boolean.difference([part] + cuts, engine="manifold")
+    return trimesh.boolean.difference([part] + cuts, engine="manifold"), flange, lip_z
 
 
 if __name__ == "__main__":
     os.makedirs("build", exist_ok=True)
-    part = bend_plate()
+    part, flange, lip_z = bend_plate()
     part.export("build/bend_plate.stl")
     print("bend_plate (vendor cyclo base + side boss):", (part.bounds[1] - part.bounds[0]).round(1),
-          f"| boss face +{BOSS_OUT}mm, 2x M3 inserts @ {BOLT_SP}mm into the boss face |",
-          "watertight:", part.is_watertight)
+          f"| flange-flush pad (z=0..{flange}, clears motor + round body)",
+          f"| protruding lip z=0..{lip_z} holds the 2 M3 inserts @ {BOLT_SP}mm",
+          "| watertight:", part.is_watertight)
