@@ -39,6 +39,8 @@ build/nema_template.stl: cad/nema_template.py
 	$(PY) cad/nema_template.py         # thin NEMA17 drilling/marking template
 build/bend_plate.stl: cad/bend_plate.py cad/rothead.py cad/parts.py
 	$(PY) cad/bend_plate.py
+build/bend_plate_90.stl: cad/bend_plate_90.py cad/rothead.py
+	$(PY) cad/bend_plate_90.py          # variant: boss bends 90° up into a riser w/ cross-axis (Y) slot
 build/housing.stl: cad/housing.py
 	$(PY) cad/housing.py               # parametric cyclo Housing (20-pin ring); no vendor STEP needed
 build/arbor_mount.stl: cad/arbor_mount.py cad/housing.py
@@ -108,6 +110,8 @@ feeder-motor-mount: build/feeder_motor_mount.stl ## pivoting NEMA17 plate to set
 nema-template: build/nema_template.stl ## thin NEMA17 drilling/marking template (4-bolt + Ø22 pilot)
 
 bend-plate: build/bend_plate.stl   ## vendor cyclo base + flange-flush side boss w/ 2 M3 inserts (needs the vendor STL)
+
+bend-plate-90: build/bend_plate_90.stl ## bend_plate variant: boss bends 90° up into a riser w/ a cross-axis (Y) slot
 
 housing: build/housing.stl          ## parametric cyclo Housing (20-pin internal-gear ring; no vendor STEP)
 

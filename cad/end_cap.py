@@ -21,9 +21,9 @@ import os
 from build123d import (Align, Axis, BuildLine, BuildPart, BuildSketch, Cylinder,
                         Plane, Polyline, Pos, export_stl, make_face, revolve)
 
-OD_TURNDOWN = 2.0        # mm off the vendor Ø42 flange -> Ø40, to clear the rotating posts
+OD_TURNDOWN = 10.0       # mm off the vendor Ø42 flange -> Ø32, to clear the bend bracket
 THICK = 6.5              # overall thickness (z = 0 .. 6.5)
-R_FLANGE = (42.0 - OD_TURNDOWN) / 2     # turned-down flange radius (20.0)
+R_FLANGE = (42.0 - OD_TURNDOWN) / 2     # turned-down flange radius (16.0)
 
 BOLT_R = 10.125          # 6 bolt holes, 60° apart
 N_BOLTS = 6
@@ -31,14 +31,20 @@ BORE_R = 1.575           # Ø3.15 M3 clearance through-bore
 CBORE_R = 3.0            # Ø6 counterbore (M3 socket head), from z=CBORE_Z up through the top
 CBORE_Z = 4.5
 
-# closed cross-section (radius, z), revolved about Z. Outer wall is clamped to R_FLANGE
-# (the turn-down); inner contour is the stepped central through-bore. Measured off the vendor.
-PROFILE = [
+# closed cross-section (radius, z), revolved about Z. Measured off the vendor; every outer
+# radius is clamped to R_FLANGE so the whole OD turns down together (the Ø33 shoulder included),
+# then consecutive duplicate points are dropped so a hard turn-down doesn't leave a zero-length edge.
+_RAW = [
     (15.025, 0.00), (15.025, 3.90), (16.50, 3.90), (16.50, 4.15),   # body -> shoulder
     (R_FLANGE, 4.15), (R_FLANGE, THICK),                            # turned-down flange + top OD
     (6.00, THICK), (5.50, 6.00), (5.50, 4.10),                      # top face -> bore (upper)
     (6.50, 4.10), (6.50, 0.50), (7.00, 0.00),                       # bore (lower) -> bottom face
 ]
+PROFILE = []
+for _r, _z in _RAW:
+    _p = (min(_r, R_FLANGE), _z)
+    if not PROFILE or PROFILE[-1] != _p:
+        PROFILE.append(_p)
 
 _C, _MIN = Align.CENTER, Align.MIN
 
