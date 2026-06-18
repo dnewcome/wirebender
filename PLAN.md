@@ -65,11 +65,19 @@ brackets are the weak links. Stiffening pass:
   (`GUSSET_*`) over the bolt lines rising 22mm up the blade back, and two extra
   deck bolts at the foot rear (`FRONT_FOOT_BOLT_X`) that widen the X bolt base.
   `base_plate()` carries the matching counterbored mounts. One watertight body.
-- [ ] **Arbor plate** (`cad/bend_disc.py`). The Ø60 × **2mm** disc carries the
-  mandrel + bend pin (the full bend reaction) with the pin holes countersunk on
-  the inner face — almost no material left around the pins. Thicken to ~5mm and
-  add a short boss around the mandrel/bend-pin holes. (Alt/also: beef
-  `arbor_mount.py`'s Ø8 posts + 9mm ribs that the disc bolts onto.)
+- [x] **Arbor plate** (`cad/bend_disc.py`). Was Ø60 × 2mm with M3 mounts. Now Ø62 ×
+  **3mm**, bolted on with **M4 countersunk** screws into the arbor posts (which got
+  matching **M4 inserts**, `arbor_mount.py` `POST_OD` 8→10 for insert wall + disc rim).
+  (Still optional: a short boss around the mandrel/bend-pin holes if the pins work loose.)
+- [ ] **Bend-disc tooling variants** (`cad/bend_disc.py`, design notes in the file). The
+  disc separates two pins with different jobs, and we'll ship a family of plates:
+  - **Outer bend pin** (`PIN_OFFSET`) sets the minimum bend **length** — sweep its radius
+    across versions: smaller wire runs it closer in, heavier wire further out. Planned:
+    swap the fixed pin for a larger **roller** (shoulder screw / small bearing) so the wire
+    rolls rather than drags as it wraps (less marring, lower friction, more force headroom).
+  - **Centre mandrel** (`MANDREL_D`) sets the minimum bend **radius** (r ≈ MANDREL_D/2 +
+    wire/2) and is **floored by wire size** — it must be stout enough not to deflect under
+    the bending force, so it's the strength-constrained pin; size it per wire/bend-radius.
 - [ ] **rothead bending neck** (`cad/rothead.py`, `flat_head()`). The bending plate
   is lifted 12mm (`FH_BEND_LIFT`) on a 5mm-thick, 13mm-wide neck (`bneck`) — a
   slender cantilever. Widen the neck in Y and thicken the central spine/web tying
