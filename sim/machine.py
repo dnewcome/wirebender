@@ -18,12 +18,12 @@ Units: mm and degrees unless a name says otherwise (`_WORLD_*` are MuJoCo metres
 """
 
 # ── frame / axis heights (cad/base.py) ──────────────────────────────────────
-AXIS_Z = 35.0                 # wire axis above the deck top      (base.py AXIS_Z)
+AXIS_Z = 30.0                 # wire axis above the deck top      (base.py AXIS_Z; lowered 35->30)
 PLATE_TH = 6.0                # base plate thickness               (base.py BASE_TH)
 # MuJoCo world: the deck sits on the floor (z=0), so the wire axis is AXIS_Z above
 # the deck top, which is PLATE_TH above the floor.
-WIRE_AXIS_WORLD_MM = AXIS_Z + PLATE_TH            # 41 mm
-WIRE_AXIS_WORLD_Z = WIRE_AXIS_WORLD_MM / 1000.0   # 0.041 m
+WIRE_AXIS_WORLD_MM = AXIS_Z + PLATE_TH            # 36 mm
+WIRE_AXIS_WORLD_Z = WIRE_AXIS_WORLD_MM / 1000.0   # 0.036 m
 BASE_WORLD_Z = PLATE_TH / 1000.0                  # 0.006 m (deck bottom on the floor)
 FEEDER_X_WORLD = 0.151        # feeder centre on the wire axis (m) (base.py FEEDER_X)
 
