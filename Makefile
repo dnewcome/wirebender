@@ -23,6 +23,8 @@ build/feeder_body.stl: cad/gen_feeder.py extruder.glb
 	$(PY) cad/gen_feeder.py
 build/base_proto.stl: cad/base_proto.py cad/base.py
 	$(PY) cad/base_proto.py
+build/base_proto_l.stl: cad/base_proto_l.py cad/base.py
+	$(PY) cad/base_proto_l.py          # L-shaped proto of the NEW deck (bearing + feeder-bracket mounts)
 build/assembly.step: cad/assembly.py cad/base.py cad/rothead.py build/feeder_body.stl
 	$(PY) cad/assembly.py
 build/sleeve.stl: cad/sleeve.py cad/base.py
@@ -41,6 +43,8 @@ build/bend_plate.stl: cad/bend_plate.py cad/rothead.py cad/parts.py
 	$(PY) cad/bend_plate.py
 build/bend_plate_90.stl: cad/bend_plate_90.py cad/rothead.py
 	$(PY) cad/bend_plate_90.py          # variant: boss bends 90° up into a riser w/ cross-axis (Y) slot
+build/feeder_bracket.stl: cad/feeder_bracket.py cad/base.py
+	$(PY) cad/feeder_bracket.py        # upright bracket: feeder bolt pattern rotated 90° into a vertical face
 build/housing.stl: cad/housing.py
 	$(PY) cad/housing.py               # parametric cyclo Housing (20-pin ring); no vendor STEP needed
 build/arbor_mount.stl: cad/arbor_mount.py cad/housing.py
@@ -68,6 +72,8 @@ head: build/rothead.stl build/head_refs.stl  ## (re)build the flat head + pinion
 	@echo "  printable: rothead.stl (flat head: 2 slotted plates + tube boss)  pinion.stl    reference: head_refs.stl"
 
 proto: build/base_proto.stl        ## short/narrow front base section for fast gear+upright prototyping
+
+proto-l: build/base_proto_l.stl    ## L-shaped proto of the new deck: bearing mounts + vertical feeder-bracket mounts
 
 assembly: build/assembly.step      ## full machine as one build123d assembly (build/assembly.step + .stl)
 
@@ -108,6 +114,8 @@ feeder-gear-press: build/feeder_gear_press.stl ## collar-less PRESS-FIT feeder p
 feeder-motor-mount: build/feeder_motor_mount.stl ## pivoting NEMA17 plate to set gear mesh (pivot + countersunk arc slot)
 
 nema-template: build/nema_template.stl ## thin NEMA17 drilling/marking template (4-bolt + Ø22 pilot)
+
+feeder-bracket: build/feeder_bracket.stl ## upright bracket holding the feeder vertically (feeder pattern rotated 90° into a vertical face)
 
 bend-plate: build/bend_plate.stl   ## vendor cyclo base + flange-flush side boss w/ 2 M3 inserts (needs the vendor STL)
 

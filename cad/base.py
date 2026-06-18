@@ -18,10 +18,11 @@ from build123d import *
 from gears import spur_gear
 
 # ── wire axis / feed tube ───────────────────────────────────────────
-AXIS_Z = 35.0          # wire axis = bearing-bore CENTRE, measured above the deck top (z=0).
-                       # The feeder sits FLAT on the deck and its output axis is 35mm above
-                       # its mounting face, so the feed tube lines up at z=35. At 35 the Ø63
-                       # fixed gear clears the deck (bottom ~3.5mm above z=0).
+AXIS_Z = 30.0          # wire axis = bearing-bore CENTRE, above the deck top (z=0). The feeder
+                       # now stands vertically on feeder_bracket with its output on this axis
+                       # (feeder_bracket.CENTER_Z tracks AXIS_Z). Lowered 35->30 in this
+                       # orientation, dropping the bearing uprights 5mm. NOTE: the fixed gear is
+                       # coaxial here — see the clearance print at the bottom of this file.
 TUBE_BORE = 10.0
 
 # ── fixed gear (head's rotation pinion meshes its outside) ──────────
@@ -66,6 +67,17 @@ FEEDER_HOLES = [
     (FEEDER_X + FEEDER_BOLT_SPAN / 2, -FEEDER_BOLT_W1 / 2),
 ]
 
+# ── vertical feeder bracket (feeder_bracket.py) placement on the deck ──
+# The feeder now stands vertically against feeder_bracket; the bracket bolts to the deck
+# like an upright. These define the deck-side mount (single source — feeder_bracket imports
+# them). The bracket runs along X centred on FEEDER_X; its mounting FACE sits FEEDER_BR_FACE_Y
+# off the centreline on the −Y edge and its body is FEEDER_BR_T thick, so the bottom-edge inserts
+# (and thus the deck holes) sit FEEDER_BR_HOLE_Y out — a little past the face by the half-thickness.
+FEEDER_BR_FACE_Y = -35.0                                 # mounting-face offset from the wire axis (−Y edge)
+FEEDER_BR_T = 12.0                                       # bracket plate thickness
+FEEDER_BR_INS_X = 58.0                                   # bottom-edge mount spacing (x = ±this)
+FEEDER_BR_HOLE_Y = FEEDER_BR_FACE_Y - FEEDER_BR_T / 2    # −41 — deck holes a half-thickness further out (−Y)
+
 # ── base plate ──────────────────────────────────────────────────────
 BASE_W, BASE_TH = 80.0, 6.0
 BASE_X0 = FG_X + FG_W + 2
@@ -98,12 +110,13 @@ def upright(x, front=False):
     for sy in (-INSERT_Y, INSERT_Y):                          # bottom-face inserts
         part -= Pos(x, sy, 0) * Cylinder(INSERT_D / 2, INSERT_H,
                                          align=(Align.CENTER, Align.CENTER, Align.MIN))
-    if front:                                                 # gear mount: through holes + nut traps
+    if front:                                                 # gear mount: plain clearance through holes
         xf, xb = x - UP_T / 2, x + UP_T / 2                    # front / back faces
         for (Y, Z) in _gear_bolts_world():
-            part -= xcyl(CLEAR_D, xf - 0.5, xb + 0.5, y=Y, z=Z)            # clearance all the way through
-            part -= (Pos(xb, Y, Z) * Rot(0, -90, 0)                       # captive hex-nut trap on the back
-                     * extrude(RegularPolygon(NUT_AF / 2 / math.cos(math.radians(30)), 6), NUT_T))
+            # just a through hole — the captive hex-nut traps were dropped because the lowered
+            # axis (AXIS_Z 35->30) brought the gear bolt circle into the bearing seat; fasten
+            # with a loose nut/washer on the back face instead.
+            part -= xcyl(CLEAR_D, xf - 0.5, xb + 0.5, y=Y, z=Z)
     return part
 
 
@@ -163,18 +176,32 @@ def spacer_in_place():
 def base_plate():
     plate = Pos((BASE_X0 + BASE_X1) / 2, 0, -BASE_TH / 2) * Box(
         BASE_X1 - BASE_X0, BASE_W, BASE_TH)
-    holes = zcyl(FEEDER_MOTOR_HOLE, FEEDER_MOTOR_X, 0, -BASE_TH - 1, BASE_TH + 2)
-    holes += zcyl(FEEDER_NOSE_HOLE, FEEDER_NOSE_X, 0, -BASE_TH - 1, BASE_TH + 2)
-    for (hx, hy) in FEEDER_HOLES:
-        holes += zcyl(FEEDER_HOLE, hx, hy, -BASE_TH - 1, BASE_TH + 2)
+    # extension so the deck reaches under the vertical feeder bracket's mount holes
+    # (they sit at y=FEEDER_BR_HOLE_Y, just past the plate's ∓BASE_W/2 edge); sign follows the edge
+    sgn = 1.0 if FEEDER_BR_HOLE_Y >= 0 else -1.0
+    ext_in = sgn * (BASE_W / 2 - 2)                 # overlap the deck edge on the bracket side
+    ext_out = FEEDER_BR_HOLE_Y + sgn * 6            # 6mm past the holes
+    plate += Pos(FEEDER_X, (ext_in + ext_out) / 2, -BASE_TH / 2) * Box(
+        2 * (FEEDER_BR_INS_X + 8), abs(ext_out - ext_in), BASE_TH)
+
+    cuts = []
+    # benchtop mounting holes
     for bx in (BASE_X0 + 12, RB_X - 4):
         for by in (-BASE_W / 2 + 6, BASE_W / 2 - 6):
-            holes += zcyl(5, bx, by, -BASE_TH - 1, BASE_TH + 2)
+            cuts.append(zcyl(5, bx, by, -BASE_TH - 1, BASE_TH + 2))
     # upright mounts: clearance + counterbore from UNDER the plate, under each upright
     for ux in (FB_X, RB_X):
         for sy in (-INSERT_Y, INSERT_Y):
-            holes += zcyl(CLEAR_D, ux, sy, -BASE_TH - 1, BASE_TH + 2)
-            holes += zcyl(CBORE_D, ux, sy, -BASE_TH - 0.01, CBORE_H)
+            cuts.append(zcyl(CLEAR_D, ux, sy, -BASE_TH - 1, BASE_TH + 2))
+            cuts.append(zcyl(CBORE_D, ux, sy, -BASE_TH - 0.01, CBORE_H))
+    # vertical feeder bracket: 2 counterbored mounts (matches the bracket's bottom-edge inserts)
+    for sx in (FEEDER_BR_INS_X, -FEEDER_BR_INS_X):
+        hx = FEEDER_X + sx
+        cuts.append(zcyl(CLEAR_D, hx, FEEDER_BR_HOLE_Y, -BASE_TH - 1, BASE_TH + 2))
+        cuts.append(zcyl(CBORE_D, hx, FEEDER_BR_HOLE_Y, -BASE_TH - 0.01, CBORE_H))
+    holes = cuts[0]
+    for c in cuts[1:]:
+        holes += c
     return plate - holes
 
 
@@ -204,3 +231,13 @@ if __name__ == "__main__":
     bb = base.bounding_box()
     print("base assembly bbox", [round(v, 1) for v in (bb.size.X, bb.size.Y, bb.size.Z)],
           "| parts:", ", ".join(k for k in parts if k != "base.stl"))
+    # fixed gear is coaxial on the wire axis; its OD dips to gear_bottom in z. That only fouls
+    # the deck if the deck is actually UNDER it in x — but the gear (x=FG_X..FG_X+FG_W) sits in
+    # front of the deck's front edge (BASE_X0 = FG_X+FG_W+2), so a radial dip hangs over empty air.
+    gear_bottom = AXIS_Z - FG_MODULE * (FG_TEETH + 2) / 2
+    deck_under_gear = BASE_X0 < FG_X + FG_W
+    note = (f"DIPS {-gear_bottom:.1f}mm below the deck and the deck runs under it — needs a clearance cut"
+            if gear_bottom < 0 and deck_under_gear
+            else f"dips to z={gear_bottom:.1f} but clears (deck starts at x={BASE_X0:.0f}, in front of the gear)"
+            if gear_bottom < 0 else "clears")
+    print(f"fixed gear bottom z={gear_bottom:.1f} (deck top=0): {note}")
