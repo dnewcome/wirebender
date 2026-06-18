@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.join(ROOT, "cad"))     # cad/  -> build123d parts
 import machine as M
 import base
 import rothead
-import bend_endcap
+import bend_disc
 
 CHECKS = [
     ("wire axis above deck (AXIS_Z)",        M.AXIS_Z,              base.AXIS_Z),
@@ -25,8 +25,8 @@ CHECKS = [
     ("feeder X (m)",                         M.FEEDER_X_WORLD,      base.FEEDER_X / 1000.0),
     ("feed tube Ø (TUBE_D)",                 M.TUBE_D,              rothead.TUBE_D),
     ("mandrel Ø (MANDREL_D)",                M.MANDREL_D,           rothead.MANDREL_D),
-    ("pin Ø (PIN_D)",                        M.PIN_D,               bend_endcap.PIN_D),
-    ("pin sweep radius (PIN_SWEEP_R=PIN_R)", M.PIN_SWEEP_R,         bend_endcap.PIN_R),
+    ("pin Ø (PIN_D)",                        M.PIN_D,               bend_disc.PIN_D),
+    ("pin sweep radius (PIN_SWEEP_R=PIN_OFFSET)", M.PIN_SWEEP_R,    bend_disc.PIN_OFFSET),
     ("fixed gear teeth (base)",              M.FIXED_GEAR_TEETH,    base.FG_TEETH),
     ("fixed gear teeth (rothead)",           M.FIXED_GEAR_TEETH,    rothead.FG_TEETH),
     ("pinion teeth (PIN_TEETH)",             M.PINION_TEETH,        rothead.PIN_TEETH),

@@ -1,24 +1,19 @@
 # Wire bender — build the CAD parts, assemble the MuJoCo model, and view it.
 #   make sim     build everything that changed and open the simulation
 #   make model   (re)generate sim/wirebender.xml only
-#   make vendor  re-bake the cycloidal envelope from the purchased STEP (slow)
 #   make clean   remove generated artifacts
 PY := py/bin/python
 
-.PHONY: sim view model vendor clean help
+.PHONY: sim view model clean help
 .DEFAULT_GOAL := help
 
 # ── CAD parts (build123d -> build/*.stl) ────────────────────────────
 build/base.stl: cad/base.py cad/gears.py
 	$(PY) cad/base.py
-build/rothead.stl: cad/rothead.py cad/parts.py cad/gears.py cad/pinion.py cad/base.py
+build/rothead.stl: cad/rothead.py cad/parts.py cad/gears.py cad/pinion.py cad/base.py cad/cyclo_base.py
 	$(PY) cad/rothead.py
 build/head_refs.stl: cad/head_refs.py cad/rothead.py cad/parts.py
 	$(PY) cad/head_refs.py            # REFERENCE: motors + cyclo (purchased, not printed)
-build/bend_endcap.stl: cad/bend_endcap.py
-	$(PY) cad/bend_endcap.py
-build/cyclo_body.stl: cad/gen_vendor.py
-	$(PY) cad/gen_vendor.py            # slow; needs the purchased Sweep Dynamics STEP
 build/feeder_body.stl: cad/gen_feeder.py extruder.glb
 	$(PY) cad/gen_feeder.py
 build/base_proto.stl: cad/base_proto.py cad/base.py
@@ -39,9 +34,9 @@ build/feeder_motor_mount.stl: cad/feeder_motor_mount.py
 	$(PY) cad/feeder_motor_mount.py    # pivoting NEMA17 mount plate (mesh adjust); MEASURE housing holes
 build/nema_template.stl: cad/nema_template.py
 	$(PY) cad/nema_template.py         # thin NEMA17 drilling/marking template
-build/bend_plate.stl: cad/bend_plate.py cad/rothead.py cad/parts.py
+build/bend_plate.stl: cad/bend_plate.py cad/cyclo_base.py cad/rothead.py cad/parts.py
 	$(PY) cad/bend_plate.py
-build/bend_plate_90.stl: cad/bend_plate_90.py cad/rothead.py
+build/bend_plate_90.stl: cad/bend_plate_90.py cad/cyclo_base.py cad/rothead.py
 	$(PY) cad/bend_plate_90.py          # variant: boss bends 90° up into a riser w/ cross-axis (Y) slot
 build/feeder_bracket.stl: cad/feeder_bracket.py cad/base.py
 	$(PY) cad/feeder_bracket.py        # upright bracket: feeder bolt pattern rotated 90° into a vertical face
@@ -51,6 +46,8 @@ build/arbor_mount.stl: cad/arbor_mount.py cad/housing.py
 	$(PY) cad/arbor_mount.py            # parametric housing + fused 4-bolt posts (OCC)
 build/end_cap.stl: cad/end_cap.py
 	$(PY) cad/end_cap.py                # cyclo End_Cap rebuilt clean (watertight), flange turned down 2mm
+build/cyclo_base.stl: cad/cyclo_base.py
+	$(PY) cad/cyclo_base.py            # parametric cyclo NEMA17 base (vendor-independent; no STEP/STL)
 build/bend_disc.stl: cad/bend_disc.py cad/arbor_mount.py
 	$(PY) cad/bend_disc.py             # bend-pin disc that bolts to the arbor posts
 
@@ -117,7 +114,7 @@ nema-template: build/nema_template.stl ## thin NEMA17 drilling/marking template 
 
 feeder-bracket: build/feeder_bracket.stl ## upright bracket holding the feeder vertically (feeder pattern rotated 90° into a vertical face)
 
-bend-plate: build/bend_plate.stl   ## vendor cyclo base + flange-flush side boss w/ 2 M3 inserts (needs the vendor STL)
+bend-plate: build/bend_plate.stl   ## parametric cyclo base + flange-flush side boss w/ 2 M3 inserts (vendor-independent)
 
 bend-plate-90: build/bend_plate_90.stl ## bend_plate variant: boss bends 90° up into a riser w/ a cross-axis (Y) slot
 
@@ -125,11 +122,11 @@ housing: build/housing.stl          ## parametric cyclo Housing (20-pin internal
 
 arbor-mount: build/arbor_mount.stl ## cyclo ring + fused 4-bolt post pattern (radial, 4mm proud, M3 inserts)
 
-end-cap: build/end_cap.stl          ## vendor cyclo End_Cap (FIXED), OD turned down 2mm to clear the mounts (replaces bend_endcap)
+end-cap: build/end_cap.stl          ## parametric cyclo End_Cap (FIXED), OD turned down 2mm to clear the mounts
+
+cyclo-base: build/cyclo_base.stl    ## parametric cycloidal NEMA17 base (reverse-engineered; no vendor file)
 
 bend-disc: build/bend_disc.stl      ## Ø60x2 disc bolting to the arbor posts; csk M3 mounts + centre/10mm bend-pin holes
-
-vendor: build/cyclo_body.stl       ## re-bake the cycloidal envelope (slow)
 
 clean:                             ## delete generated STLs/STEPs/meshes/model
 	rm -f build/*.stl build/*.step sim/meshes/*.stl sim/wirebender.xml

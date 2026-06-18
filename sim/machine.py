@@ -11,7 +11,7 @@ all describe ONE machine:
     animate_bend.py wire-axis height, BEND_RADIUS    (the animation)
 
 The geometry constants MIRROR the CAD (cad/base.py, cad/rothead.py,
-cad/bend_endcap.py). `sim/consistency.py` (`make check-consistency`) asserts they
+cad/bend_disc.py). `sim/consistency.py` (`make check-consistency`) asserts they
 stay in sync, so this file can't silently drift from the printed parts.
 
 Units: mm and degrees unless a name says otherwise (`_WORLD_*` are MuJoCo metres).
@@ -30,10 +30,10 @@ FEEDER_X_WORLD = 0.151        # feeder centre on the wire axis (m) (base.py FEED
 # ── feed tube ───────────────────────────────────────────────────────────────
 TUBE_D = 6.35                 # 1/4" feed tube OD (bare tube; sleeved to Ø8 at the bearings)  (rothead.py TUBE_D)
 
-# ── bend cell (cad/rothead.py, cad/bend_endcap.py) ──────────────────────────
+# ── bend cell (cad/rothead.py, cad/bend_disc.py) ────────────────────────────
 MANDREL_D = 4.0               # fixed mandrel Ø                    (rothead.py MANDREL_D)
-PIN_D = 4.0                   # bending-pin Ø                      (bend_endcap.py PIN_D)
-PIN_SWEEP_R = 13.0            # pin-centre radius from bend axis   (bend_endcap.py PIN_R)
+PIN_D = 3.0                   # bending-pin Ø                      (bend_disc.py PIN_D)
+PIN_SWEEP_R = 10.0            # pin-centre radius from bend axis   (bend_disc.py PIN_OFFSET)
 DIE_TRAVEL_DEG = 270.0        # usable cycloid output rotation (Axis 3)
 
 # ── rotation drive: head pinion meshing the fixed gear (cad/base.py, rothead.py) ──

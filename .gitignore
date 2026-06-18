@@ -11,6 +11,7 @@ build/
 sim/meshes/
 sim/wirebender*.xml
 
-# vendor cycloid geometry (Sweep Dynamics, paid) — not redistributed; rothead.py
-# falls back to a placeholder block if it's absent
+# vendor cycloid geometry (Sweep Dynamics, paid) — not redistributed. No longer read by
+# the build: cyclo_base.py is a parametric, vendor-independent rebuild. Kept only as a
+# local reference; safe to delete.
 nema-17-cycloid-base.stl

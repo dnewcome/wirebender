@@ -19,6 +19,7 @@ from build123d import *
 from gears import spur_gear
 from parts import nema17, NEMA, NEMA_BOLT
 from pinion import pinion
+from cyclo_base import cyclo_base as _cyclo_base
 
 # Sweep Dynamics 20:1 micro-cycloidal STEP (vendor/paid geometry — NOT committed).
 # Point this at your local copy; the assembly falls back to a block if it's absent.
@@ -42,12 +43,10 @@ MANDREL_D, MANDREL_OFFSET = 4.0, 2.8
 BEND_X = -30.0                      # bend axis X (at the wire exit, front of head)
 BEND_Y = MANDREL_OFFSET             # bend axis offset so the wire is tangent
 OUT_Z = 8.0                         # cycloidal output face height above the wire
-CYC_BODY_H = 23.3                   # real cycloidal envelope height (output->input), from gen_vendor
+CYC_BODY_H = 23.3                   # real cycloidal envelope height (output->input), measured off the vendor STEP
 BEND_PLATE_Z = OUT_Z + CYC_BODY_H   # cycloid INPUT/motor face (top) — head hangs below it
-CYC_BASE_T = 9.0                    # nema-17-cycloid-base.stl thickness (NEMA face <-> bearing boss)
+CYC_BASE_T = 9.0                    # cyclo NEMA17 base thickness (NEMA face <-> bearing boss); = cyclo_base.T
 BEND_MOTOR_Z = BEND_PLATE_Z + CYC_BASE_T   # bend pancake input face (top of the bend stack)
-CYC_BASE_STL = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                            "nema-17-cycloid-base.stl")
 
 # ── rotation motor ──────────────────────────────────────────────────
 ROTMOT = (PANCAKE_D, CYC_SQ, CYC_SQ)   # pancake on -Z, axis ∥ X (L along X)
@@ -148,16 +147,14 @@ def rot_mount():
 
 
 def cyclo_base():
-    """The cycloid drive's integrated NEMA17 base (vendor nema-17-cycloid-base.stl),
-    oriented BEARING-BOSS-DOWN toward the wire — the pancake mounts on the NEMA face
-    (up), the Ø30 output boss faces the wire. This IS the bend-head mount (the whole
-    drive is integrated), not a printed plate. Output boss face at z=OUT_Z."""
-    if not os.path.exists(CYC_BASE_STL):                # vendor STL absent -> placeholder block
-        b = Pos(0, 0, CYC_BASE_T / 2) * Box(CYC_SQ, CYC_SQ, CYC_BASE_T)
-    else:
-        b = import_stl(CYC_BASE_STL)
-        c = b.bounding_box().center()
-        b = Pos(-c.X, -c.Y, 0) * b                      # centre on the output axis (XY)
+    """The cycloid drive's integrated NEMA17 base (parametric cyclo_base.py), oriented
+    BEARING-BOSS-DOWN toward the wire — the pancake mounts on the NEMA face (up), the
+    Ø30 output boss faces the wire. This IS the bend-head mount (the whole drive is
+    integrated), not a printed plate. Output boss face at z=OUT_Z.
+
+    cyclo_base() is built NEMA-face-at-z=0, Ø30 boss up at z=T, centred on the output
+    axis (XY) — so we just flip it boss-down and place it; no re-centring needed."""
+    b = _cyclo_base()
     return Pos(BEND_X, BEND_Y, OUT_Z + CYC_BASE_T) * Rot(180, 0, 0) * b
 
 

@@ -27,7 +27,7 @@ Rules (severity: 'error' = unmakeable as written, 'warn' = marginal/approx):
   pin_tube     bend wrap exceeds what clears the feed tube/incoming   [calib]
   part_head    formed part swings back into the head body             [approx]
 
-Constants are sourced from the CAD (cad/rothead.py, cad/bend_endcap.py) and the
+Constants are sourced from the CAD (cad/rothead.py, cad/bend_disc.py) and the
 cycloid spec; keep them in sync. The geometric clearances marked [approx]/[calib]
 are conservative first-cut models — tighten against the real head once the head
 redesign lands (see PLAN.md). The live mesh-level pin↔tube interference of the

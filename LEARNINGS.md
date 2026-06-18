@@ -42,6 +42,19 @@ Caveats:
   ("null triangulation") faces that OpenCASCADE couldn't mesh at any tolerance, so 4 of its
   6 holes dropped into detached, non-watertight shells and a slicer only printed 2 holes.
   A parametric rebuild sidesteps broken vendor tessellation entirely.
+  - **The tell: screw holes vanish in the file conversion.** Converting the vendor part to a
+    meshed B-rep kept losing the End_Cap's bolt holes (only 2 of 6 survived). That symptom —
+    holes silently dropping on export — is the canonical reason this project re-creates vendor
+    geometry parametrically rather than shipping the imported mesh.
+- **Standing goal: no vendor geometry in the build path.** Read the STEP (B-rep, exact) to
+  *measure* dimensions, but ship a parametric rebuild so the build depends on no purchased
+  STEP/STL (which are paid/not-redistributable anyway). The STEP is the source of truth for
+  numbers; it is not a build dependency. Done: `housing.py`, `end_cap.py`, and `cyclo_base.py`
+  (the parametric `Base_-_Nema_17` rebuild — `bend_plate.py`/`bend_plate_90.py`/`rothead.py`
+  now build off it with OCC booleans, so the vendor base STL is no longer read by the build;
+  the orphaned `gen_vendor.py` STEP-reader was removed). Prefer the STEP B-rep over the STL
+  when measuring — the mesh is a lossy tessellation; the B-rep gives exact radii/centres (and
+  is where the holes are intact).
 - When the vendor solid *does* tessellate cleanly (the `Housing_v1` mesh is watertight) and
   its surface is intricate, a faithful STEP extraction is fine to keep — but even then,
   reading the B-rep tells you the geometry is simple enough (20 plain pins) that a parametric

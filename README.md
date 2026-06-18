@@ -70,7 +70,7 @@ Vendor geometry (the Sweep Dynamics cycloid STEP / `nema-17-cycloid-base.stl`) i
 - [ ] Verify feed tube bearing selection and fit
 - [ ] Confirm toothed belt/pulley sizing for feed tube rotation axis
 - [ ] Validate bending head flange fits the chosen bending motor shaft
-- [ ] Test the bend pin / mandrel fit and geometry (`cad/bend_endcap.py`)
+- [ ] Test the bend pin / mandrel fit and geometry (`cad/bend_disc.py`)
 - [ ] Design wire guide / straightener between spool and extruder
 
 ### Electronics & Control

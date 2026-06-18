@@ -14,7 +14,9 @@ Assembled from the actual part STLs — what you see is what you print:
 | `base`       | `build/base.stl`      | printable: deck + uprights + fixed gear + spacer |
 | `head`       | `build/rothead.stl`   | printable: head bracket (rot + bend pieces) |
 | `pinion`     | `build/pinion.stl`    | printable: rotation pinion (animated, meshes the fixed gear) |
-| `benddie`    | `build/bend_endcap.stl` | cycloidal output + bend pin            |
+| `arbor_mount`| `build/arbor_mount.stl` | printable: rotating cyclo housing + posts (bend output) |
+| `end_cap`    | `build/end_cap.stl`   | printable: turned-down cyclo end cap (fixed, caps the arbor) |
+| `bend_plate` | `build/bend_plate.stl`| printable: cyclo base + side boss (fixed; bend motor on its back) |
 | `head_refs`  | `build/head_refs.stl` | **reference** (purchased): NEMA motors + cycloid drive |
 | `feeder`     | `build/feeder_body.stl` | reference primitive (1KGSSJ-B feeder) |
 
