@@ -54,6 +54,31 @@ is the only other printed piece.
 exact insert spacing on the cycloid boss (today's slots assume `CYC_INS_Y=±14`,
 `CYC_INS_Z=12.5` on the base +X face — re-match once the sketch lands).
 
+## Mechanical stiffening / robustness (2026-06-18)
+
+The feeder grip and bend-head torque are now strong enough that the surrounding
+brackets are the weak links. Stiffening pass:
+
+- [x] **Front upright foot + gussets** (`cad/base.py`). The thin 8mm blade is now a
+  braced L-bracket: a 6mm rearward foot (x≈12→36 — can't extend forward, the deck
+  edge is at x=10 and the fixed gear hangs in front), two triangular gussets
+  (`GUSSET_*`) over the bolt lines rising 22mm up the blade back, and two extra
+  deck bolts at the foot rear (`FRONT_FOOT_BOLT_X`) that widen the X bolt base.
+  `base_plate()` carries the matching counterbored mounts. One watertight body.
+- [ ] **Arbor plate** (`cad/bend_disc.py`). The Ø60 × **2mm** disc carries the
+  mandrel + bend pin (the full bend reaction) with the pin holes countersunk on
+  the inner face — almost no material left around the pins. Thicken to ~5mm and
+  add a short boss around the mandrel/bend-pin holes. (Alt/also: beef
+  `arbor_mount.py`'s Ø8 posts + 9mm ribs that the disc bolts onto.)
+- [ ] **rothead bending neck** (`cad/rothead.py`, `flat_head()`). The bending plate
+  is lifted 12mm (`FH_BEND_LIFT`) on a 5mm-thick, 13mm-wide neck (`bneck`) — a
+  slender cantilever. Widen the neck in Y and thicken the central spine/web tying
+  it to the boss (in-plane stiffening, keeps the flat-print orientation).
+- [ ] **Bender right-angle mount** (`cad/bend_plate_90.py`). The riser is a 6mm tab
+  (`RISER_T`) cantilevering 22mm (`RISER_H`) up off the flange. Add a pair of
+  triangular side gussets from the flange arm up the riser back (trimesh prisms),
+  and/or bump `RISER_T`.
+
 ## Wire / bend modeling
 
 - [x] **Bend radius (filleted corners).** Bends now lay an arc of radius
@@ -158,15 +183,10 @@ straight between bends, bend-radius limit) — reuse `interference.py` per path.
 
 ## Hardware / CAD (replace rough primitives with real geometry)
 
-- [ ] **Stepper mount adapter** (`stepper-adapter.scad`). Parametric NEMA17-on-
-  1KGSSJ-B adapter that keeps the existing gear reduction via a self-centering
-  register boss. **Needs measurements** off the real feeder:
-  - pocket dia + depth (the boss register)
-  - axial seat of the existing pinion (mesh depth)
-  - housing screw-hole pattern
-  - pinion tooth count + module (confirms `feeder-gear.scad`: 12T, m0.5, 5 mm bore)
-  - confirm the can motor is located by the round pocket (self-centering assumption)
-  - NEMA17 body clearance behind the gearbox
+- [x] **Stepper mount + drive gear** (done — superseded the old `stepper-adapter.scad`
+  / `feeder-gear.scad`, both deleted). The NEMA17 mount is now integrated into
+  `cad/feeder_bracket.py` (motor pocket / slotted web / boss pocket), and the drive
+  pinion is `cad/feeder_gear_press.py` (11T m0.8, press-fit D-bore, 12mm engagement).
 - [ ] **Replace primitives with CAD** in the manifest: feeder body, feed tube,
   U-bracket + bearings, tube-rotation motor + belt/pulley. Then `make_mjcf.py`
   picks them up as real meshes and the sim/interference geometry gets accurate.

@@ -35,6 +35,15 @@ FB_X, RB_X = 16.0, 72.0
 UP_T, UP_W = 8.0, BRG_OD + 14
 UP_H = AXIS_Z + BRG_OD / 2 + 6
 
+# ── front-upright stiffening foot (REARWARD only; the deck front edge + the fixed gear
+#    hanging in front block any −X foot). Turns the thin blade into a braced L-bracket. ──
+FRONT_FOOT_BACK = 16.0           # foot reaches this far behind the blade back face (+X)
+FRONT_FOOT_T = 6.0               # foot slab thickness (>= INSERT_H so it holds the M3 inserts)
+FRONT_FOOT_BOLT_X = FB_X + UP_T / 2 + FRONT_FOOT_BACK - 5.0   # rear foot insert X (=31)
+GUSSET_T = 4.0                   # gusset rib thickness (Y)
+GUSSET_RISE = 22.0               # gusset height up the blade back (stays below the bearing bore)
+GUSSET_Y = 12.0                  # gussets at ±this (over the bolt lines)
+
 # ── fasteners (M3 heat-set inserts; uprights from below, gear from the front) ──
 INSERT_D, INSERT_H = 4.6, 5.0    # heat-set insert hole (M3 brass, larger ~5mm-OD family)
 CLEAR_D = 3.4                    # M3 screw clearance
@@ -98,20 +107,48 @@ def zcyl(d, x, y, z0, h):
 # ── uprights ────────────────────────────────────────────────────────
 
 
+def _front_foot(x):
+    """Rearward foot slab fused to the bottom of the front blade (z = 0..FRONT_FOOT_T)."""
+    x0, x1 = x - UP_T / 2, x + UP_T / 2 + FRONT_FOOT_BACK
+    return Pos((x0 + x1) / 2, 0, FRONT_FOOT_T / 2) * Box(x1 - x0, UP_W, FRONT_FOOT_T)
+
+
+def _gusset(x, yc):
+    """A right-triangle rib (thickness GUSSET_T at y=yc) tying the blade back face up to
+    the foot top: vertical leg up the blade, horizontal leg out along the foot."""
+    x0 = x + UP_T / 2                              # blade back face
+    x1 = x0 + FRONT_FOOT_BACK                      # foot rear edge
+    z0, z1 = FRONT_FOOT_T, FRONT_FOOT_T + GUSSET_RISE
+    with BuildPart() as bp:
+        with BuildSketch(Plane.XZ):                # local (a,b) -> global (x=a, z=b)
+            with BuildLine():
+                Polyline((x0, z0), (x0, z1), (x1, z0), close=True)
+            make_face()
+        extrude(amount=GUSSET_T / 2, both=True)    # centred on y=0, thickness GUSSET_T
+    return Pos(0, yc, 0) * bp.part
+
+
 def upright(x, front=False):
     """A bearing upright, printed on its own. Bottom face flat on the plate (z=0)
-    with two heat-set inserts (screws up from under the plate). The FRONT upright
-    also gets the gear bolt-circle inserts on its front face."""
-    body = Pos(x, 0, UP_H / 2) * Box(UP_T, UP_W, UP_H)        # bottom at z=0
-    seat = Pos(x - UP_T / 2, 0, AXIS_Z) * Rot(0, 90, 0) * Cylinder(
+    with two heat-set inserts (screws up from under the plate). The FRONT upright also
+    gets a rearward stiffening foot + gussets (anti-tip) and the gear bolt-circle holes."""
+    part = Pos(x, 0, UP_H / 2) * Box(UP_T, UP_W, UP_H)        # blade, bottom at z=0
+    if front:                                                 # add the foot + gussets BEFORE drilling
+        part += _front_foot(x)
+        for gy in (-GUSSET_Y, GUSSET_Y):
+            part += _gusset(x, gy)
+    # bearing seat + through bore cut AFTER the gussets so the bore stays clear at the blade back
+    part -= Pos(x - UP_T / 2, 0, AXIS_Z) * Rot(0, 90, 0) * Cylinder(
         BRG_OD / 2, BRG_W, align=(Align.CENTER, Align.CENTER, Align.MIN))
-    thru = xcyl(BRG_OD - 2 * BRG_LIP, x - UP_T / 2 - 0.5, x + UP_T / 2 + 0.5)
-    part = body - seat - thru
-    for sy in (-INSERT_Y, INSERT_Y):                          # bottom-face inserts
+    part -= xcyl(BRG_OD - 2 * BRG_LIP, x - UP_T / 2 - 0.5, x + UP_T / 2 + 0.5)
+    for sy in (-INSERT_Y, INSERT_Y):                          # blade bottom-face inserts
         part -= Pos(x, sy, 0) * Cylinder(INSERT_D / 2, INSERT_H,
                                          align=(Align.CENTER, Align.CENTER, Align.MIN))
-    if front:                                                 # gear mount: plain clearance through holes
-        xf, xb = x - UP_T / 2, x + UP_T / 2                    # front / back faces
+    if front:
+        for sy in (-INSERT_Y, INSERT_Y):                      # rear foot inserts
+            part -= Pos(FRONT_FOOT_BOLT_X, sy, 0) * Cylinder(INSERT_D / 2, INSERT_H,
+                                                             align=(Align.CENTER, Align.CENTER, Align.MIN))
+        xf, xb = x - UP_T / 2, x + UP_T / 2                    # gear mount: plain clearance through holes
         for (Y, Z) in _gear_bolts_world():
             # just a through hole — the captive hex-nut traps were dropped because the lowered
             # axis (AXIS_Z 35->30) brought the gear bolt circle into the bearing seat; fasten
@@ -194,6 +231,10 @@ def base_plate():
         for sy in (-INSERT_Y, INSERT_Y):
             cuts.append(zcyl(CLEAR_D, ux, sy, -BASE_TH - 1, BASE_TH + 2))
             cuts.append(zcyl(CBORE_D, ux, sy, -BASE_TH - 0.01, CBORE_H))
+    # front-upright rearward foot: 2 extra mounts at the foot rear (widens the X bolt base)
+    for sy in (-INSERT_Y, INSERT_Y):
+        cuts.append(zcyl(CLEAR_D, FRONT_FOOT_BOLT_X, sy, -BASE_TH - 1, BASE_TH + 2))
+        cuts.append(zcyl(CBORE_D, FRONT_FOOT_BOLT_X, sy, -BASE_TH - 0.01, CBORE_H))
     # vertical feeder bracket: 2 counterbored mounts (matches the bracket's bottom-edge inserts)
     for sx in (FEEDER_BR_INS_X, -FEEDER_BR_INS_X):
         hx = FEEDER_X + sx
