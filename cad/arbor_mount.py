@@ -3,7 +3,7 @@
 The whole part is 3D-printed. We take the parametric Housing (housing.py) and fuse on a
 4-bolt mounting pattern: four posts that stick OUT radially past the ring OD and stand
 PROUD of the part's top face, each tied back to the ring by a short rib and carrying an
-M4 heat-set insert (open at the top). A bending plate bolts down onto the four posts.
+M3 heat-set insert (open at the top). A bending plate bolts down onto the four posts.
 
 Everything here is clean build123d B-rep geometry — the housing is a parametric solid
 (no vendor STEP/STL), so the posts/ribs fuse with ordinary OCC booleans (this is the
@@ -21,14 +21,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from housing import HEIGHT, OD, housing    # parametric cyclo Housing (no vendor dependency)
 
 BOLT_R = 26.0           # bolt-circle radius — posts stick out radially past the ring OD (~20.5)
-POST_OD = 10.0          # post Ø (was 8.0; +2mm for the M4 insert wall + to grow the disc OD so the
-                        #   Ø8 M4 flat-heads clear the disc rim — bend_disc OD = 2*BOLT_R + POST_OD)
+POST_OD = 8.0           # post Ø
 PROUD = 4.0             # posts stand this far above the part's top face (2mm base + 2mm extra clearance)
 POST_DROP = 4.0         # post also drops this far below the face (body for the insert + rib bond)
 RIB_IN = 20.5           # rib spans (RIB_IN-1)..(BOLT_R+1); inner reach r19.5 welds ~1.5mm into the
                         #   Ø42 wall (solid overlap so OCC fuses it) yet clears the Ø37 bore (r<18.5)
 RIB_W = 9.0             # rib width (tangential)
-INSERT_D = 5.6          # M4 heat-set insert bore, run as a THROUGH hole so the iron can't bottom out
+INSERT_D = 4.6          # M3 heat-set insert bore, run as a THROUGH hole so the iron can't bottom out
 ANGLES = (45, 135, 225, 315)      # 4-bolt square pattern, off the feature axes
 
 _C = Align.CENTER
@@ -70,4 +69,4 @@ if __name__ == "__main__":
     b = m.bounds
     print(f"arbor_mount: ring + 4-bolt pattern  bbox {[round(v,1) for v in (b[1]-b[0])]}"
           f"  bolt-circle Ø{2*BOLT_R}  posts {PROUD}mm proud of face z={face:.1f}"
-          f"  M4 inserts  bodies:{len(m.split(only_watertight=False))}  watertight:{m.is_watertight}")
+          f"  M3 inserts  bodies:{len(m.split(only_watertight=False))}  watertight:{m.is_watertight}")

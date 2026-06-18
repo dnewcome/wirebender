@@ -1,9 +1,9 @@
 """bend_disc.py — the bend-pin disc that bolts onto the rotating arbor_mount posts.
 
 A flat 3mm disc whose OD matches the arbor's overall width across its mounting ears
-(2*BOLT_R + POST_OD). It bolts to the four arbor posts (the M4 heat-set inserts), so it
+(2*BOLT_R + POST_OD). It bolts to the four arbor posts (the M3 heat-set inserts), so it
 carries the same 4-bolt pattern; those mounting holes are countersunk on the OUTER face
-for M4 flat-head screws.
+for M3 flat-head screws.
 
 On the OPPOSITE (inner / arbor-facing) face are two countersunk holes for the bending
 pins: the MANDREL on the disc centre (the wire wraps this) and the BEND PIN PIN_OFFSET
@@ -42,8 +42,8 @@ OD = 2 * AM.BOLT_R + AM.POST_OD      # overall Ø = across the arbor ears (62mm)
 BOLT_R = AM.BOLT_R                   # mounting bolt circle (matches the arbor posts)
 ANGLES = AM.ANGLES
 
-MNT_CLEAR = 4.5                      # M4 clearance for the 4 mounting screws
-MNT_CSK = 8.0                        # M4 flat-head countersink major Ø (ISO 10642 head ≈ Ø8)
+MNT_CLEAR = 3.4                      # M3 clearance for the 4 mounting screws (into the arbor M3 inserts)
+MNT_CSK = 6.0                        # M3 flat-head countersink major Ø
 MANDREL_D = 3.0                      # centre mandrel pin Ø (wraps the wire; see DESIGN NOTES — varies w/ bend radius + wire)
 PIN_D = 3.0                          # outer bend pin Ø (the sweeper; sim PIN_D)
 PIN_OFFSET = 10.0                    # bend pin centre, radially out from the disc centre (sim PIN_SWEEP_R)
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     import trimesh
     m = trimesh.load("build/bend_disc.stl")
     bb = part.bounding_box()
-    print(f"bend_disc: Ø{OD:.1f} x {T}mm  4x M4 csk @ r{BOLT_R} (outer face)  "
+    print(f"bend_disc: Ø{OD:.1f} x {T}mm  4x M3 csk @ r{BOLT_R} (outer face)  "
           f"mandrel Ø{MANDREL_D} @ centre + bend pin Ø{PIN_D} @ {PIN_OFFSET}mm (inner face)  "
           f"bbox {[round(v, 1) for v in bb.size]}  bodies:{len(m.split(only_watertight=False))}  "
           f"watertight:{m.is_watertight}")

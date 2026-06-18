@@ -65,10 +65,11 @@ brackets are the weak links. Stiffening pass:
   (`GUSSET_*`) over the bolt lines rising 22mm up the blade back, and two extra
   deck bolts at the foot rear (`FRONT_FOOT_BOLT_X`) that widen the X bolt base.
   `base_plate()` carries the matching counterbored mounts. One watertight body.
-- [x] **Arbor plate** (`cad/bend_disc.py`). Was Ø60 × 2mm with M3 mounts. Now Ø62 ×
-  **3mm**, bolted on with **M4 countersunk** screws into the arbor posts (which got
-  matching **M4 inserts**, `arbor_mount.py` `POST_OD` 8→10 for insert wall + disc rim).
-  (Still optional: a short boss around the mandrel/bend-pin holes if the pins work loose.)
+- [x] **Arbor plate** (`cad/bend_disc.py`). Was Ø60 × 2mm. Now **3mm** thick (more
+  material around the countersinks for the bend reaction), still bolted to the arbor
+  posts with 4× **M3 countersunk** screws into the existing M3 inserts (arbor_mount
+  unchanged). (Still optional: a short boss around the mandrel/bend-pin holes if the
+  pins work loose.)
 - [ ] **Bend-disc tooling variants** (`cad/bend_disc.py`, design notes in the file). The
   disc separates two pins with different jobs, and we'll ship a family of plates:
   - **Outer bend pin** (`PIN_OFFSET`) sets the minimum bend **length** — sweep its radius
