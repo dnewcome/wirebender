@@ -34,7 +34,7 @@ build/pinion.stl: cad/pinion.py cad/base.py cad/gears.py
 build/feeder_gear.stl: cad/feeder_gear.py cad/base.py cad/gears.py
 	$(PY) cad/feeder_gear.py
 build/feeder_gear_press.stl: cad/feeder_gear_press.py cad/gears.py
-	$(PY) cad/feeder_gear_press.py     # collar-less press-fit variant (no hub/set screw)
+	$(PY) cad/feeder_gear_press.py     # press-fit variant (D-flat drive, 4mm collar, no set screw)
 build/feeder_motor_mount.stl: cad/feeder_motor_mount.py
 	$(PY) cad/feeder_motor_mount.py    # pivoting NEMA17 mount plate (mesh adjust); MEASURE housing holes
 build/nema_template.stl: cad/nema_template.py
@@ -109,7 +109,7 @@ pinion: build/pinion.stl           ## stepper pinion (12T, 5mm D-bore + M3 set s
 
 feeder-gear: build/feeder_gear.stl ## feeder stepper gear (11T m0.8, 5mm D-bore + M3 set screw)
 
-feeder-gear-press: build/feeder_gear_press.stl ## collar-less PRESS-FIT feeder pinion (11T m0.8, D-bore, no set screw)
+feeder-gear-press: build/feeder_gear_press.stl ## PRESS-FIT feeder pinion (11T m0.8, D-flat drive, 8mm+4mm collar=12mm, no set screw)
 
 feeder-motor-mount: build/feeder_motor_mount.stl ## pivoting NEMA17 plate to set gear mesh (pivot + countersunk arc slot)
 
