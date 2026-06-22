@@ -28,9 +28,9 @@ pins, and the ring creeps one pin per input turn -> 20:1.
     load-transmitting interface — output torque reacts here. The vendor already runs metal
     rollers (not bare bolts); bigger/steel rollers + thicker discs is the scaling path.
   * Eccentric shaft (FAITHFUL to the vendor Shaft, every section measured off the STEP):
-    23.2 long — bottom support Ø6.8 (0..6.5) -> two Ø8 eccentric journals 180° apart, 5.1
+    23.2 long — bottom support Ø7.0 (0..6.5) -> two Ø8 eccentric journals 180° apart, 5.1
     each (carry the 8x12x3.5 bearings; the two journals = 10.2 = the ring band) -> top
-    support Ø6.8; a D-bore (Ø5.25 round + a flat at AF 4.6) 18.9 deep from the bottom that
+    support Ø7.0; a D-bore (Ø5.25 round + a flat at AF 4.6) 18.9 deep from the bottom that
     PRESS-FITS onto the NEMA17 D-shaft — the flat keys the torque, the interference fit (bore
     modeled oversize for FDM shrinkage) holds it axially. No set screw (no room; vendor-proven).
 
@@ -76,7 +76,9 @@ N_PROFILE = 720             # disc-profile sample points
 N_DISCS = 2                  # balanced 2-disc stack (journals 180° apart)
 SUPP_BRG = (7.0, 13.0, 4.0)  # support bearing ID, OD, W (vendor 7x13x4, in base + end_cap)
 SHAFT_LEN = 23.2             # overall length (vendor)
-SUPP_OD = 6.8                # support-journal OD (rides the 7x13 bearings; tune to your print)
+SUPP_OD = 7.0                # support-journal OD = the 7x13 bearing ID (snug, no play). Vendor modeled
+#                              6.8 (slip clearance) but that left play; matched to the eccentric journal,
+#                              which fits perfectly at exactly its bearing ID (Ø8.0). Tune ±0.05 to taste.
 SUPP_L_BOT = 6.5             # bottom support length (= where the eccentric journals start)
 JOURNAL_ECC_D = 8.0          # eccentric-journal OD (rides the 8x12 bearings; vendor 8.05, 8.0 for slip-fit)
 ECC_L = 5.1                  # each eccentric-journal length (2 of them -> 10.2 = ring toothed band)
