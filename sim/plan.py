@@ -116,6 +116,31 @@ def plan_to_program(program, **kw):
     return seq
 
 
+def verify(program, springback=0.0, wire_r=cl.WIRE_R, margin=MARGIN, planned=True):
+    """Whole-path safety gate. Replay the FULL interpolated motion (every feed/rotate/
+    bend frame — the same frames the --plan animation draws) through the ground-truth
+    clearance model, and fail if ANY frame dips below `margin`. This catches what the
+    per-bend greedy planner can't: a feed/rotation chosen for one bend that traps a later
+    move. planned=True verifies the planner's safe sequence; planned=False verifies the
+    raw program (what the planner had to fix)."""
+    import animate_bend as ab
+    seq = plan_to_program(program, springback=springback) if planned else program
+    frames = ab.frames_for(seq, springback=springback)
+    worst = (1e9, -1, 0.0, 0.0)
+    below = []
+    for i, (tube, bend, W) in enumerate(frames):
+        c = cl.clearance(W, tube_deg=tube, bend_deg=bend, wire_r=wire_r)
+        g = c["min"]
+        if g < worst[0]:
+            worst = (g, i, round(tube, 1), round(bend, 1))
+        if g < margin:
+            below.append(dict(frame=i, tube=round(tube, 1), bend=round(bend, 1),
+                              gap=round(g, 2), body=c["hit"]))
+    return dict(ok=worst[0] >= margin, min=round(worst[0], 2), frames=len(frames),
+                worst_frame=worst[1], worst_tube=worst[2], worst_bend=worst[3],
+                n_below=len(below), below=below[:8])
+
+
 def _fmt(m):
     k = m["kind"]
     if k == "feed":
@@ -140,6 +165,16 @@ def main():
     print(f"plan for '{args.program}' ({'OK' if res['ok'] else 'HAS COLLISIONS'}):")
     for m in res["moves"]:
         print(_fmt(m))
+    v = verify(prog, springback=args.springback)
+    tag = "PASS" if v["ok"] else "FAIL"
+    print(f"\nwhole-path verify: {tag}  (min clearance {v['min']}mm over {v['frames']} frames, "
+          f"margin {MARGIN}mm)")
+    if not v["ok"]:
+        print(f"  {v['n_below']} frame(s) below margin; worst at frame {v['worst_frame']} "
+              f"(tube {v['worst_tube']}°, bend {v['worst_bend']}°)")
+        for b in v["below"]:
+            print(f"    frame {b['frame']}: gap {b['gap']}mm @ tube {b['tube']}° bend {b['bend']}°")
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
