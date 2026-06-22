@@ -176,6 +176,10 @@ forward model + planner already use (`machine.py`: `ROT_HOME_DEG`, `BEND_HOME_DE
 - Touches: `machine.py` (home zeros, pull-off, travel — done) · CAD (`arbor_mount` tab +
   `home_switch` bracket — done; head tab pending) · GRBL (homing cycle). **Closed-loop
   steppers** additionally *detect* skips and recover — the robust endgame given the stalls.
+- **Visualize:** `make home` (GIF) / `make home-view` (live) — `sim/home.py` simulates the
+  homing cycle (seek → trip → pull-off → zero) and the switch (bracket + body + lever, placed
+  in the MuJoCo model at the ring flag's home) so you can see the position + mounting and
+  confirm the homed pose (mandrel +Z, pin ⊥ wire).
 
 ## Toward a reusable kinematic kernel (3rd-party tools)
 

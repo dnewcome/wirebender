@@ -27,8 +27,10 @@ for src, dst in [("build/base.stl", "base.stl"),              # printable
                  ("build/end_cap.stl", "end_cap.stl"),         # turned-down cyclo end cap (on the arbor)
                  ("build/bend_plate.stl", "bend_plate.stl"),  # cyclo base + boss (fixed; motor on its back)
                  ("build/head_refs.stl", "head_refs.stl"),    # REFERENCE: motors (purchased)
+                 ("build/home_switch.stl", "home_switch.stl"),  # Axis-3 home microswitch bracket
                  ("build/feeder_body.stl", "feeder.stl")]:    # reference primitive
-    shutil.copy(ROOT / src, MESH / dst)
+    if (ROOT / src).exists():
+        shutil.copy(ROOT / src, MESH / dst)
 
 from machine import (WIRE_AXIS_WORLD_Z as ZAXIS, BASE_WORLD_Z as BASE_Z,
                      FEEDER_X_WORLD as FEEDER_X, TUBE_D, MESH_R, PINION_MOUNT_X)
@@ -70,6 +72,7 @@ XML = f"""<mujoco model="wirebender">
     <mesh name="end_cap" file="end_cap.stl" scale="0.001 0.001 0.001"/>
     <mesh name="bend_plate" file="bend_plate.stl" scale="0.001 0.001 0.001"/>
     <mesh name="head_refs" file="head_refs.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="home_switch" file="home_switch.stl" scale="0.001 0.001 0.001"/>
     <mesh name="feeder" file="feeder.stl" scale="0.001 0.001 0.001"/>
   </asset>
   <worldbody>
@@ -93,6 +96,16 @@ XML = f"""<mujoco model="wirebender">
             rgba="0.5 0.7 0.55 1" contype="0" conaffinity="0"/>
       <geom type="mesh" mesh="end_cap" pos="{BX} {BY} {EC_HEAD_Z}" quat="{FLIP}"
             rgba="0.95 0.5 0.15 1" contype="0" conaffinity="0"/>
+      <!-- Axis-3 HOME microswitch — FIXED on the head; the rotating ring's HOME_FLAG
+           (arbor_mount) sweeps to this lever at the pin-orthogonal home (bend=0). PROPOSED
+           placement to iterate on: bracket cantilevered from the fixed side, lever at the
+           ring-flag radius (~r24mm) on the +X home spoke, in the flag's z-plane. -->
+      <geom type="mesh" mesh="home_switch" pos="{BX+0.034} {BY} 0.0102" euler="0 0 0"
+            rgba="0.30 0.32 0.36 1" contype="0" conaffinity="0"/>
+      <geom type="box" size="0.0065 0.0032 0.0030" pos="{BX+0.031} {BY} 0.0150"
+            rgba="0.12 0.12 0.15 1" contype="0" conaffinity="0"/>            <!-- switch body -->
+      <geom type="box" size="0.0035 0.0006 0.0015" pos="{BX+0.0275} {BY} 0.0150"
+            rgba="0.85 0.15 0.15 1" contype="0" conaffinity="0"/>            <!-- switch lever -->
       <inertial pos="0 0 0" mass="0.2" diaginertia="2e-4 2e-4 2e-4"/>
       <!-- Axis 2b: rotation pinion, spins as the head rolls -> meshes the fixed gear -->
       <body name="pinion" pos="{PIN_X} 0 {PIN_Z}" quat="0.70711 0 0.70711 0">

@@ -59,7 +59,7 @@ build/cycloid_assembly.stl: cad/check_cyclo.py cad/cycloid.py cad/housing.py cad
 
 # printable parts the sim assembles + reference meshes (motors/cyclo, feeder)
 PARTS := build/base.stl build/rothead.stl build/pinion.stl build/end_cap.stl \
-         build/arbor_mount.stl build/bend_plate.stl \
+         build/arbor_mount.stl build/bend_plate.stl build/home_switch.stl \
          build/head_refs.stl build/feeder_body.stl
 
 # ── MuJoCo model (parts -> wirebender.xml + meshes) ─────────────────
@@ -90,6 +90,12 @@ anim: sim/wirebender.xml           ## render a bend GIF; FAULTS+halts on a rule 
 
 anim-view: sim/wirebender.xml      ## play a bend program LIVE; faults+halts on a violation (NAME=...; needs a display)
 	cd sim && DISPLAY=:0 ../$(PY) animate_bend.py $(or $(NAME),staple) --view $(ARGS)
+
+home: sim/wirebender.xml           ## simulate the homing cycle -> preview/homing.gif (seek->trip->pull-off)
+	cd sim && MUJOCO_GL=osmesa ../$(PY) home.py $(ARGS)
+
+home-view: sim/wirebender.xml      ## play the homing cycle LIVE (needs a display)
+	cd sim && DISPLAY=:0 ../$(PY) home.py --view $(ARGS)
 
 slice:                             ## model -> G-code (IN=model.svg/.stl/example [OUT=part.gcode])
 	cd sim && ../$(PY) slicer.py $(IN) $(if $(OUT),-o $(OUT),)
