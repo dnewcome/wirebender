@@ -84,9 +84,22 @@ XML = f"""<mujoco model="wirebender">
           rgba="0.6 0.62 0.66 1" contype="0" conaffinity="0"/>
     <geom name="feeder" type="mesh" mesh="feeder" pos="{FEEDER_X} 0 {FEEDER_Z}" quat="0 0 0 1"
           rgba="0.3 0.31 0.34 1" contype="0" conaffinity="0"/>
+    <!-- Axis-2 (rotation) HOME microswitch — WORLD-FIXED (a frame upright would carry it); the
+         head's home tab sweeps UP to this lever at the mandrel-up home (tube_rot=0). PROPOSED
+         placement to iterate with the head redesign (the head tab is a placeholder too). -->
+    <geom type="mesh" mesh="home_switch" pos="0.02 0 {ZAXIS+0.0405}" euler="1.5708 0 0"
+          rgba="0.30 0.32 0.36 1" contype="0" conaffinity="0"/>
+    <geom type="box" size="0.0065 0.0032 0.0030" pos="0.02 0 {ZAXIS+0.036}"
+          rgba="0.12 0.12 0.15 1" contype="0" conaffinity="0"/>           <!-- switch body -->
+    <geom type="box" size="0.0015 0.0006 0.0035" pos="0.02 0 {ZAXIS+0.0315}"
+          rgba="0.85 0.15 0.15 1" contype="0" conaffinity="0"/>           <!-- switch lever -->
     <body name="head" pos="0 0 {ZAXIS}">
       <joint name="tube_rot" type="hinge" axis="1 0 0" range="-1.6 1.6"/>
       <geom type="mesh" mesh="head" pos="0 0 0" rgba="0.86 0.6 0.2 1" contype="0" conaffinity="0"/>
+      <!-- Axis-2 home tab on the head (rotates with tube_rot): at mandrel-up it points +Z
+           into the fixed rotation switch above. PLACEHOLDER until the head redesign. -->
+      <geom type="box" size="0.004 0.005 0.004" pos="0.02 0 0.028"
+            rgba="0.86 0.6 0.2 1" contype="0" conaffinity="0"/>
       <!-- purchased parts: motors, shown for context (not animated internally) -->
       <geom type="mesh" mesh="head_refs" pos="0 0 0" rgba="0.42 0.46 0.54 1" contype="0" conaffinity="0"/>
       <!-- bend actuator, FIXED parts: cyclo base + boss (bend_plate; motor bolts to its

@@ -60,11 +60,11 @@ def _flash_pos(model, data, label):
     """World pos (mm) to flash on a TRIP — the real bend-switch lever (Axis 3, modelled in
     make_mjcf) or, for Axis 2, a point above the head marking mandrel-up. Both ride the head
     body pose so they track tube_rot."""
-    hd = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "head")
-    R = data.xmat[hd].reshape(3, 3); t = data.xpos[hd]
-    local = np.array([BX + 0.0275, BY, 0.0150]) if "Axis 3" in label \
-        else np.array([BX, BY, 0.0152 + 0.024])
-    return (t + R @ local) * 1000.0
+    if "Axis 3" in label:                       # bend switch — fixed on the head, tracks tube_rot
+        hd = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "head")
+        R = data.xmat[hd].reshape(3, 3); t = data.xpos[hd]
+        return (t + R @ np.array([BX + 0.0275, BY, 0.0150])) * 1000.0
+    return np.array([20.0, 0.0, ab.ZAXIS_MM + 31.5])   # rotation switch — WORLD-fixed lever
 
 
 def _report(start_rot, start_bend):
