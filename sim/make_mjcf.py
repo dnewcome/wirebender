@@ -105,7 +105,9 @@ XML = f"""<mujoco model="wirebender">
            to the posts isn't designed yet, so the "pin" site is a placeholder so the bend
            actuator/animation still resolve. -->
       <body name="benddie" pos="{BX} {BY} {ZBOSS}" quat="{FLIP}">
-        <joint name="bend" type="hinge" axis="0 0 1" range="-3.2 3.2"/>
+        <!-- axis "0 0 -1": the body is FLIP'd 180° about X, so local -Z = head +Z; this makes a
+             +bend command sweep the die/pin the SAME way the wire curls (+Y), matching the real machine -->
+        <joint name="bend" type="hinge" axis="0 0 -1" range="-3.2 3.2"/>
         <geom type="mesh" mesh="arbor_mount" pos="0 0 0" rgba="0.5 0.7 0.55 1" contype="0" conaffinity="0"/>
         <site name="pin" pos="0.015 0 0.0155" size="0.0025" rgba="1 0.1 0.1 1"/>
         <inertial pos="0 0 0" mass="0.05" diaginertia="2e-5 2e-5 2e-5"/>

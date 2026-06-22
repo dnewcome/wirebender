@@ -29,8 +29,9 @@ ZAXIS_MM = WIRE_AXIS_WORLD_MM             # = 41 mm, single-sourced (deck top + 
 B = np.array([-30.0, 0.0, ZAXIS_MM])     # bend point (mandrel), fixed in world
 C_FAULT = "1 0 1 1"                       # magenta fault marker
 E = np.array([-1.0, 0.0, 0.0])           # formed wire trails -X (out the front)
-B0 = np.array([0.0, -1.0, 0.0])          # deflect in -Y -> bend axis = +Z (the cycloidal
-                                          # axis), so the wire bends in the horizontal plane
+B0 = np.array([0.0, 1.0, 0.0])           # deflect +Y — matches bend_model's convention (the
+                                          # forward model / slicer) so the animation curls the
+                                          # SAME way the predicted part + the real machine do
 ROT_AXIS = np.array([1.0, 0.0, 0.0])     # Axis 2 (head rotation) = the wire axis
 FEED_BACK_X = 90.0                        # unformed stub runs back to here (+X)
 WIRE_R_MM = 1.4                           # exaggerated for visibility (real wire ~Ø1.6)
