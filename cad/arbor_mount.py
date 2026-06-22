@@ -30,6 +30,16 @@ RIB_W = 9.0             # rib width (tangential)
 INSERT_D = 4.6          # M3 heat-set insert bore, run as a THROUGH hole so the iron can't bottom out
 ANGLES = (45, 135, 225, 315)      # 4-bolt square pattern, off the feature axes
 
+# Axis-3 (bend) HOME trigger: a small radial tab on the rotating ring OD that presses the
+# home microswitch at the pin-orthogonal position. The ring is the cycloid output, so this
+# tab rotates with the bend. Tune HOME_FLAG_ANGLE to the actual pin-orthogonal home at
+# assembly (and HOME_FLAG=False to omit it). See machine.py BEND_HOME_DEG / docs/DRIVE_SIZING.
+HOME_FLAG = True
+HOME_FLAG_ANGLE = 0.0   # clock position of the bend-home tab (deg)
+FLAG_PROUD = 3.0        # radial protrusion past the ring OD
+FLAG_W = 5.0            # tangential width (gives the switch lever a solid face)
+FLAG_H = 6.0            # axial height (sits in the top band of the ring)
+
 _C = Align.CENTER
 
 
@@ -52,6 +62,13 @@ def arbor_mount():
         adds.append(Pos(rib_rmid * c, rib_rmid * s, zc) * Rot(0, 0, a) * Box(rib_len, RIB_W, post_h))  # rib
         holes.append(Pos(BOLT_R * c, BOLT_R * s, zc)
                      * Cylinder(INSERT_D / 2, post_h + 2, align=(_C, _C, _C)))                 # insert (through)
+    # Axis-3 home trigger: a radial tab on the ring OD (overlaps the wall by 1mm to weld),
+    # in the top band of the ring, that the home microswitch lever rides at the home angle.
+    if HOME_FLAG:
+        fa = math.radians(HOME_FLAG_ANGLE)
+        rmid = OD / 2 + FLAG_PROUD / 2 - 1.0    # 1mm into the wall, FLAG_PROUD proud of the OD
+        adds.append(Pos(rmid * math.cos(fa), rmid * math.sin(fa), HEIGHT - FLAG_H / 2)
+                    * Rot(0, 0, HOME_FLAG_ANGLE) * Box(FLAG_PROUD + 2.0, FLAG_W, FLAG_H))
     # Relief: a cylinder of the part OD sitting on the top face, subtracted so the proud
     # posts/ribs get a curved inner wall at the ring OD (r=OD/2). This clears the overhang
     # the ribs would otherwise leave inside the ring, so the end_cap drops in and seats flush.

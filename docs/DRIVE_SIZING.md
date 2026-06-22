@@ -167,9 +167,15 @@ forward model + planner already use (`machine.py`: `ROT_HOME_DEG`, `BEND_HOME_DE
   ambiguous. Flag on the rotating output (ring/disc) → fixed sensor on the end_cap/base.
   This sets the bend-zero, so favour an **optical/hall** (non-contact) sensor; the 20:1
   reduction gives sub-degree output accuracy from a modest flag.
-- Touches: `machine.py` (home zeros, pull-off, travel — done) · CAD (trigger flag + switch
-  bracket — pending) · GRBL (homing cycle + pull-off). **Closed-loop steppers** additionally
-  *detect* skips and recover — the robust endgame given the stall history.
+- **Hardware: microswitches.** Axis 3 — a radial **home tab on the rotating ring**
+  (`arbor_mount.py` `HOME_FLAG`, tune `HOME_FLAG_ANGLE` to the pin-orthogonal home) presses
+  a switch on the fixed `end_cap`/`cyclo_base`. Axis 2 — a tab on the head presses a switch
+  on the upright (head tab pending the head redesign). Both use the adjustable bracket
+  `cad/home_switch.py` (subminiature SS-5GL/D2F switch, slotted M3 mounts to trim the trip
+  onto the software zero; GRBL pull-off `HOME_PULLOFF_DEG`).
+- Touches: `machine.py` (home zeros, pull-off, travel — done) · CAD (`arbor_mount` tab +
+  `home_switch` bracket — done; head tab pending) · GRBL (homing cycle). **Closed-loop
+  steppers** additionally *detect* skips and recover — the robust endgame given the stalls.
 
 ## Toward a reusable kinematic kernel (3rd-party tools)
 

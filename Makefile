@@ -52,6 +52,8 @@ build/bend_disc.stl: cad/bend_disc.py cad/arbor_mount.py
 	$(PY) cad/bend_disc.py             # bend-pin disc that bolts to the arbor posts
 build/cycloid_disc.stl build/cycloid_shaft.stl: cad/cycloid.py cad/housing.py cad/cyclo_base.py
 	$(PY) cad/cycloid.py               # cycloidal disc + eccentric shaft (parametric; validated vs vendor STEP)
+build/home_switch.stl: cad/home_switch.py
+	$(PY) cad/home_switch.py           # adjustable subminiature-microswitch mount (homing, both axes)
 build/cycloid_assembly.stl: cad/check_cyclo.py cad/cycloid.py cad/housing.py cad/cyclo_base.py
 	$(PY) cad/check_cyclo.py           # fit check + viewable housing+discs+shaft assembly
 
@@ -127,7 +129,9 @@ bend-plate-90: build/bend_plate_90.stl ## bend_plate variant: boss bends 90° up
 
 housing: build/housing.stl          ## parametric cyclo Housing (20-pin internal-gear ring; no vendor STEP)
 
-arbor-mount: build/arbor_mount.stl ## cyclo ring + fused 4-bolt post pattern (radial, 4mm proud, M3 inserts)
+arbor-mount: build/arbor_mount.stl ## cyclo ring + fused 4-bolt post pattern (radial, 4mm proud, M3 inserts) + Axis-3 home tab
+
+home-switch: build/home_switch.stl ## adjustable subminiature-microswitch mount (Axis 2 + Axis 3 homing)
 
 end-cap: build/end_cap.stl          ## parametric cyclo End_Cap (FIXED), OD turned down 2mm to clear the mounts
 
