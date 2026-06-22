@@ -17,6 +17,7 @@ import machine as M
 import base
 import rothead
 import bend_disc
+import cycloid
 
 CHECKS = [
     ("wire axis above deck (AXIS_Z)",        M.AXIS_Z,              base.AXIS_Z),
@@ -33,6 +34,16 @@ CHECKS = [
     ("gear module (FG_MODULE)",              M.GEAR_MODULE,         base.FG_MODULE),
     ("gear mesh radius (MESH_R)",            M.MESH_R,              rothead.MESH_R),
     ("pinion mount X (PINION_MOUNT_X)",      M.PINION_MOUNT_X,      rothead.PINION_MOUNT_X),
+    # ── bend-drive reduction (cad/cycloid.py) ──
+    ("drive ratio (= ring pins)",            M.DRIVE_RATIO,         cycloid.N),
+    ("ring pins (N_RING_PINS)",              M.N_RING_PINS,         cycloid.N),
+    ("disc lobes (N_LOBES)",                 M.N_LOBES,             cycloid.LOBES),
+    ("eccentricity (ECCENTRICITY=E)",        M.ECCENTRICITY,        cycloid.E),
+    ("disc face width (DISC_FACE_W=DISC_T)", M.DISC_FACE_W,         cycloid.DISC_T),
+    ("disc count (N_DISCS)",                 M.N_DISCS,             cycloid.N_DISCS),
+    ("carrier radius (CARRIER_R)",           M.CARRIER_R,           cycloid.CARRIER_R),
+    ("carrier roller Ø (CARRIER_ROLLER_D)",  M.CARRIER_ROLLER_D,    cycloid.ROLLER_D),
+    ("carrier count (N_CARRIER)",            M.N_CARRIER,           cycloid.N_CARRIER),
 ]
 
 

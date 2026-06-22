@@ -50,6 +50,10 @@ build/cyclo_base.stl: cad/cyclo_base.py
 	$(PY) cad/cyclo_base.py            # parametric cyclo NEMA17 base (vendor-independent; no STEP/STL)
 build/bend_disc.stl: cad/bend_disc.py cad/arbor_mount.py
 	$(PY) cad/bend_disc.py             # bend-pin disc that bolts to the arbor posts
+build/cycloid_disc.stl build/cycloid_shaft.stl: cad/cycloid.py cad/housing.py cad/cyclo_base.py
+	$(PY) cad/cycloid.py               # cycloidal disc + eccentric shaft (parametric; validated vs vendor STEP)
+build/cycloid_assembly.stl: cad/check_cyclo.py cad/cycloid.py cad/housing.py cad/cyclo_base.py
+	$(PY) cad/check_cyclo.py           # fit check + viewable housing+discs+shaft assembly
 
 # printable parts the sim assembles + reference meshes (motors/cyclo, feeder)
 PARTS := build/base.stl build/rothead.stl build/pinion.stl build/end_cap.stl \
@@ -100,6 +104,9 @@ rules:                             ## check a program against the bend-cell limi
 check-consistency:                 ## assert sim/machine.py matches the CAD constants
 	$(PY) sim/consistency.py
 
+drive:                             ## what stock can the machine bend? torque + printed-disc limits (MATERIAL=pa-cf MOTOR=1.5)
+	cd sim && ../$(PY) drive_model.py $(if $(MATERIAL),--material $(MATERIAL),) $(if $(MOTOR),--motor $(MOTOR),)
+
 sleeve: build/sleeve.stl           ## printed 1/4"-tube -> 608-bearing adapter (print x2)
 
 pinion: build/pinion.stl           ## stepper pinion (12T, 5mm D-bore + M3 set screw)
@@ -127,6 +134,12 @@ end-cap: build/end_cap.stl          ## parametric cyclo End_Cap (FIXED), OD turn
 cyclo-base: build/cyclo_base.stl    ## parametric cycloidal NEMA17 base (reverse-engineered; no vendor file)
 
 bend-disc: build/bend_disc.stl      ## Ø60x2 disc bolting to the arbor posts; csk M3 mounts + centre/10mm bend-pin holes
+
+cycloid: build/cycloid_disc.stl    ## cycloidal disc + eccentric shaft (the last vendor-sealed internals; print disc x2)
+	$(PY) cad/cycloid.py >/dev/null && echo "  build/: cycloid_disc.stl (print x2)  cycloid_shaft.stl"
+
+check-cyclo:                       ## assert the disc/shaft fit the ring + write build/cycloid_assembly.stl to view
+	$(PY) cad/check_cyclo.py
 
 clean:                             ## delete generated STLs/STEPs/meshes/model
 	rm -f build/*.stl build/*.step sim/meshes/*.stl sim/wirebender.xml

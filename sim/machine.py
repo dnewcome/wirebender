@@ -9,10 +9,11 @@ all describe ONE machine:
     check_pin.py    wire-axis height, tube Ø         (mesh clearance probe)
     make_mjcf.py    world axis height, feeder X, tube (the MuJoCo model)
     animate_bend.py wire-axis height, BEND_RADIUS    (the animation)
+    drive_model.py  ratio/disc/motor                 (what stock can it bend?)
 
 The geometry constants MIRROR the CAD (cad/base.py, cad/rothead.py,
-cad/bend_disc.py). `sim/consistency.py` (`make check-consistency`) asserts they
-stay in sync, so this file can't silently drift from the printed parts.
+cad/bend_disc.py, cad/cycloid.py). `sim/consistency.py` (`make check-consistency`)
+asserts they stay in sync, so this file can't silently drift from the printed parts.
 
 Units: mm and degrees unless a name says otherwise (`_WORLD_*` are MuJoCo metres).
 """
@@ -35,6 +36,26 @@ MANDREL_D = 4.0               # fixed mandrel Ø                    (rothead.py 
 PIN_D = 3.0                   # bending-pin Ø                      (bend_disc.py PIN_D)
 PIN_SWEEP_R = 10.0            # pin-centre radius from bend axis   (bend_disc.py PIN_OFFSET)
 DIE_TRAVEL_DEG = 270.0        # usable cycloid output rotation (Axis 3)
+
+# ── bend-drive reduction: the 20:1 cycloid (cad/cycloid.py, housing.py) ──────
+# These describe the gearbox that multiplies the bend-motor torque AND set the
+# printed-disc load capacity. drive_model.py turns them into "what stock can this
+# machine bend?"; consistency.py keeps them matched to cad/cycloid.py.
+DRIVE_RATIO       = 20.0      # output:input — carrier fixed, ring is output (= N ring pins)
+N_RING_PINS       = 20        # housing.py N_PINS
+N_LOBES           = 19        # cycloid.py LOBES (= N_RING_PINS - 1)
+ECCENTRICITY      = 0.625     # cycloid.py E (vendor-measured; reduced from the full R/N=0.925)
+DISC_FACE_W       = 4.6       # cycloid.py DISC_T — face width PER disc (the capacity lever)
+N_DISCS           = 2         # cycloid.py N_DISCS (balanced stack)
+CARRIER_R         = 10.125    # cycloid.py CARRIER_R — carrier-roller bolt circle
+CARRIER_ROLLER_D  = 5.0       # cycloid.py ROLLER_D — Ø of the alu carrier rollers (the load path)
+N_CARRIER         = 6         # cycloid.py N_CARRIER
+DRIVE_EFF         = 0.80      # cycloidal mechanical efficiency (estimate)
+
+# ── bend motor (Axis 3) + bending mechanics ─────────────────────────────────
+MOTOR_HOLDING_TORQUE = 0.22   # N·m — current pancake NEMA17 (the weak link; full NEMA17 ≈0.45, NEMA23 ≈1.5)
+MOTOR_USABLE_FRAC    = 0.70   # usable fraction of holding torque before skipping (slow bend)
+BEND_PROCESS_FACTOR  = 1.6    # required torque / ideal plastic moment (friction + work-harden + over-bend)
 
 # ── rotation drive: head pinion meshing the fixed gear (cad/base.py, rothead.py) ──
 FIXED_GEAR_TEETH = 40         # base.py FG_TEETH (the fixed gear on the deck)
