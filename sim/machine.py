@@ -37,6 +37,25 @@ PIN_D = 3.0                   # bending-pin Ø                      (bend_disc.p
 PIN_SWEEP_R = 10.0            # pin-centre radius from bend axis   (bend_disc.py PIN_OFFSET)
 DIE_TRAVEL_DEG = 270.0        # usable cycloid output rotation (Axis 3)
 
+# ── homing (Axes 2 & 3; feed/Axis 1 is relative — no home) ──────────────────
+# These define what the machine ZEROS mean physically — the same zeros the forward model,
+# planner, and slicer already assume — so a homing switch makes the software zero real.
+#   Axis 2 (tube_rot): home = the bend-disc axis / mandrel pointing UP (+Z) with the wire
+#     axis along X on the XY deck. That is tube_rot = 0; a bend at home lies in the
+#     horizontal (XY) plane. Switch: a flag on the rotating head -> a fixed switch on the
+#     upright; rotation sets the bend PLANE so ~1° home repeatability is plenty.
+#   Axis 3 (bend die): home = the bend PIN 90° orthogonal to the wire axis (the sweep
+#     start). That is bend = 0; the die sweeps up to DIE_TRAVEL_DEG from here. MUST home on
+#     the cycloid OUTPUT — the 20:1 makes the motor turn ~15× over the 270° output, so a
+#     motor-shaft index is ambiguous. Switch: a flag on the rotating output (ring/disc) ->
+#     a fixed sensor on the end_cap/base; this sets the bend-zero, so favour an optical/hall
+#     (non-contact) sensor for repeatability.
+ROT_HOME_DEG     = 0.0        # Axis 2 zero = mandrel up (+Z)
+BEND_HOME_DEG    = 0.0        # Axis 3 zero = pin orthogonal to the wire (sweep start)
+HOME_PULLOFF_DEG = 3.0        # back off this far after the switch trips (GRBL pull-off)
+ROT_TRAVEL_DEG   = (-92.0, 92.0)        # Axis 2 soft-limit range about home (head roll)
+BEND_TRAVEL_DEG  = (0.0, DIE_TRAVEL_DEG) # Axis 3 sweeps one way from home
+
 # ── bend-drive reduction: the 20:1 cycloid (cad/cycloid.py, housing.py) ──────
 # These describe the gearbox that multiplies the bend-motor torque AND set the
 # printed-disc load capacity. drive_model.py turns them into "what stock can this

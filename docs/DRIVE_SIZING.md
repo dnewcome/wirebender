@@ -151,19 +151,24 @@ Default (`nema17`, 20 pins) is byte-identical to the validated drive. `PINS=30 M
 **Caveats:** ~1–2 mm sampling resolution (keep margin); pin-vs-part during the bend stroke
 is still the parametric `interference.py` rule (no bend-disc mesh in the sim yet).
 
-## Homing (planned, not built)
+## Homing (conventions decided; hardware/CAD pending)
 
-Open-loop steppers lose position on a stall, so homing is needed to re-reference:
+Open-loop steppers lose position on a stall, so homing is needed to re-reference. Two
+switches (feed/Axis 1 is relative — no home). The home zeros equal the software zeros the
+forward model + planner already use (`machine.py`: `ROT_HOME_DEG`, `BEND_HOME_DEG`):
 
-- **Axis 1 (feed):** no homing — relative feed (a wire-present/jam sensor is separate).
-- **Axis 2 (tube rotation / bend plane):** yes — an angular home so "rotate 0" is a known
-  plane. Range ±~90°.
-- **Axis 3 (bend die):** yes, the important one — each bend sweeps from home, and the
-  bend-zero accuracy depends on it. A flag on the rotating output + a switch on the fixed
-  structure; optical/hall (non-contact) beats a microswitch in an oily/printed environment,
-  and the 20:1 reduction gives sub-degree output accuracy from a modest flag.
-- Touches: `machine.py` (home offsets, switch angles, axis limits), CAD (trigger flag +
-  switch bracket), GRBL (homing cycle + pull-off). **Closed-loop steppers** additionally
+- **Axis 2 (tube rotation / bend plane) — `tube_rot = 0` = mandrel / bend-disc axis pointing
+  UP (+Z)** with the wire along X on the XY deck (a bend at home lies in the horizontal
+  plane). Flag on the rotating head → fixed switch on the upright. Rotation sets the bend
+  PLANE, so ~1° home repeatability suffices (a ramped microswitch is fine).
+- **Axis 3 (bend die) — `bend = 0` = bend PIN 90° orthogonal to the wire axis** (the sweep
+  start; the die sweeps to `DIE_TRAVEL_DEG` from here). **Must home on the cycloid OUTPUT** —
+  the 20:1 makes the motor turn ~15× over the 270° output, so a motor-shaft index is
+  ambiguous. Flag on the rotating output (ring/disc) → fixed sensor on the end_cap/base.
+  This sets the bend-zero, so favour an **optical/hall** (non-contact) sensor; the 20:1
+  reduction gives sub-degree output accuracy from a modest flag.
+- Touches: `machine.py` (home zeros, pull-off, travel — done) · CAD (trigger flag + switch
+  bracket — pending) · GRBL (homing cycle + pull-off). **Closed-loop steppers** additionally
   *detect* skips and recover — the robust endgame given the stall history.
 
 ## Toward a reusable kinematic kernel (3rd-party tools)
