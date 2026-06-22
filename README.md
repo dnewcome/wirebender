@@ -46,20 +46,32 @@ sim (`sim/`), and the CAD↔sim machine parameters live in one place
 python3 -m venv py
 ./py/bin/pip install build123d gggears mujoco trimesh numpy pillow networkx manifold3d
 
-make parts     # base plate / uprights / fixed gear / spacer (printable STLs)
-make head      # printable head pieces (rot + bend) + pinion + reference meshes
-make model     # assemble the MuJoCo model (sim/wirebender.xml) from the STLs
-make view      # open the interactive sim (head auto-sweeps its limits)
-make assembly  # full machine as one build123d STEP (build/assembly.step)
-make           # list all targets
+make parts        # base plate / uprights / fixed gear / spacer (printable STLs)
+make head         # printable head pieces (rot + bend) + pinion + reference meshes
+make cyclo-drive  # the cycloid drive: ring + disc + shaft + base + end-cap (+ fit-check)
+make model        # assemble the MuJoCo model (sim/wirebender.xml) from the STLs
+make view         # open the interactive sim (head auto-sweeps its limits)
+make assembly     # full machine as one build123d STEP (build/assembly.step)
+make              # list all targets
 ```
 
-Generated artifacts land in `build/` and `sim/meshes/` (both gitignored —
-reproduce from source). See `STRUCTURE.md` for the repo layout, `PLAN.md` for the
-design roadmap, and `sim/README.md` for the simulation + G-code toolchain.
+The **bend drive is fully parametric** — no vendor file is read at build time. The
+**canonical machine targets 14 ga steel on the current motor** (the 20:1 / Ø42 drive), and
+the same generator scales to heavier stock by one knob:
 
-Vendor geometry (the Sweep Dynamics cycloid STEP / `nema-17-cycloid-base.stl`) is
-**not redistributed**; the scripts fall back to placeholder blocks if it's absent.
+```bash
+make drive                              # what wire can this machine bend + the driver current it needs
+make cyclo-drive PINS=30 MOTOR=nema23   # a complete SCALED drive (Ø60 / 30:1, NEMA23) for 1/4" stock
+```
+
+See **`docs/DRIVE_SIZING.md`** for motor/driver sizing, the scaling family, the clearance
+planner, and homing. Generated artifacts land in `build/` and `sim/meshes/` (both gitignored
+— reproduce from source); `STRUCTURE.md` is the repo layout, `PLAN.md` the roadmap, and
+`sim/README.md` the simulation + G-code toolchain.
+
+The original Sweep Dynamics cycloid geometry (STEP / `nema-17-cycloid-base.stl`) is **paid
+and not redistributed**; it was measured once to validate the parametric rebuild and is no
+longer needed to build any part.
 
 ## Checklist
 

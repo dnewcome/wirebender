@@ -90,33 +90,37 @@ brackets are the weak links. Stiffening pass:
 
 ## Bend drive (cycloid) + machine sizing
 
-- [x] **Fully-parametric 20:1 cycloid drive** (`cad/cycloid.py`). The last vendor-sealed
-  internals — the **cycloidal disc** and the **eccentric shaft** — are now parametric and
-  validated against the vendor STEP/BOM: disc lobe profile to **RMS 0.04 mm** (E=0.625
-  measured three ways), shaft a faithful **press-fit D-bore** drop-in. `make check-cyclo`
-  asserts the disc/shaft mesh + fit the ring (housing.py) and writes a viewable assembly.
-  With this the whole drive (base/ring/end-cap/disc/shaft) reads no vendor file.
-- [x] **Design explorer** (`sim/drive_model.py`, params in `machine.py`, guarded by
-  `consistency.py`). Answers "what stock can THIS machine bend?" from the two binding
-  limits — **torque** (d³·σy·ratio·motor) and **printed-disc capacity** (carrier-roller
-  bearing stress). Reproduces the real bench result (0.150" stalls the pancake NEMA17;
-  disc not stressed → motor-bound). `make drive MATERIAL=… MOTOR=…`.
-- [ ] **Calibrate the model against real bends.** `BEND_PROCESS_FACTOR` (1.6) and the
-  `MATERIALS` bearing allowables + `PEAK_CARRIER_SHARE` are first-cut; fit them to measured
-  stall torque / disc wear once parts are printed and run.
-- [ ] **Scaling to heavier stock / 1/4" rod.** Model says it's motor-bound, not disc-bound:
-  ~2.5 N·m at the bend motor (full NEMA17 → NEMA23) clears 1/4" mild steel; disc good to
-  ~Ø7.6 in PA-CF. Levers: motor torque, ratio (compound for more), disc **face width**
-  (`DISC_FACE_W`, the linear capacity lever), **steel** carrier rollers. Verify the vendor
-  cycloid's *rated* output torque isn't the new ceiling.
-- [ ] **Optional disc refinement: bearing land.** Vendor disc has a Ø11 × 0.75 land in the
-  bore (an axial seat the 8×12 bearing presses against) + 0.25 mm edge chamfers. Land is a
-  nice-to-have for repeatable bearing seating (chamfers cosmetic / sub-FDM-resolution).
-  Add the land parametrically once the press fit is dialed in.
-- [ ] **Tube bending (future).** `drive_model.py` already takes `kind="tube", wall=…`
-  (hollow section modulus), but torque is necessary-not-sufficient for tube: also needs a
-  **mandrel/wiper** model against wrinkling + **ovalization** limits (function of d/wall and
-  bend radius). Add those before trusting tube predictions.
+**Canonical machine: 14 ga steel on the current motor (the 20:1 / Ø42 drive).** 14 ga needs
+~0.5 N·m so margin is large; get this fully working first. Everything below is the documented
+**scaling path** for heavier stock — full details + numbers in **`docs/DRIVE_SIZING.md`**.
+
+- [x] **Fully-parametric cycloid drive** (`cad/cycloid.py` + `housing.py` + `cyclo_base.py` +
+  `end_cap.py`). Disc + eccentric shaft validated vs the vendor STEP/BOM (lobe profile RMS
+  0.04 mm, E=0.625; press-fit D-bore shaft; support journals Ø7). The whole drive reads no
+  vendor file. **Scales by one knob:** `make cyclo-drive PINS=30 MOTOR=nema23` keeps the lobe
+  size + eccentric core (shaft/bearings reused), grows the ring/disc, and switches the NEMA
+  mount. `make check-cyclo PINS=…` confirms the disc meshes. Default (20 pins / nema17) is
+  byte-identical to the validated drive.
+- [x] **Design explorer + driver sizing** (`sim/drive_model.py`, `make drive`). Two limits —
+  torque (d³·σy·ratio·motor) and printed-disc capacity — plus **phase-current → driver class**
+  (stepper torque is current-set). Diagnoses stalls (current-deficiency vs motor-insufficiency)
+  and sizes the body Ø for a target wire (1/4″ mild ≈ Ø62 / 30:1 at 1.5× on the NEMA23).
+  Reproduces the bench stalls. Machine-bound, not disc-bound, in every case.
+- [x] **Clearance-aware motion planner** (`sim/clearance.py` + `sim/plan.py`). Mesh
+  ground-truth clearance; per-bend rotation backtrack + feed-to-clear; `plan.verify()`
+  whole-path safety gate; `--plan` clearance-coloured animation. (See the Interference section.)
+- [ ] **Calibrate the model against real bends.** `BEND_PROCESS_FACTOR` (1.6), `MATERIALS`
+  allowables, `PEAK_CARRIER_SHARE`, and wire σy by temper — fit to measured stall torque /
+  disc wear once the canonical machine runs.
+- [ ] **Stout mandrel / roller-pin `bend_disc`** sized for the 27–55 N·m reaction of heavy
+  stock (steel pins) — the strength-constrained part once the drive can deliver the torque.
+- [ ] **Homing switches** — Axis 2 (bend plane) + Axis 3 (bend die, the critical one);
+  flag-on-output + fixed switch, optical/hall preferred; `machine.py` offsets + GRBL cycle.
+- [ ] **Optional disc bearing land** (Ø11 × 0.75 vendor feature) once the press fit is dialed.
+- [ ] **Tube bending (future).** `drive_model.py` takes `kind="tube"`, but torque is
+  necessary-not-sufficient: needs a mandrel/wiper wrinkle + ovalization model.
+- [ ] **Reusable kinematic kernel** for 3rd-party tools — `machine.json` profile + JSON CLI
+  (see `docs/DRIVE_SIZING.md`).
 
 ## Wire / bend modeling
 

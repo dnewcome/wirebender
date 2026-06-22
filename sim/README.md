@@ -119,10 +119,32 @@ kinematics as `bend_model`) and reports per-bend violations of the machine limit
 It's wired into `slicer.py --check` and enforced in `animate_bend.py`. The
 clearance constants are calibratable placeholders (see `PLAN.md`).
 
+## Drive sizing (`drive_model.py`, `make drive`)
+
+"What stock can this machine bend, and what driver does it need?" Two limits — **torque**
+(d³·σy·ratio·motor) and **printed-disc capacity** — plus the **phase current → driver class**
+(stepper torque is current-set). Diagnoses stalls and sizes the cycloid body Ø for a target
+wire. `make drive` · `make drive CURRENT=1.5` · `--rated-torque/--rated-current` to spec a
+motor. Full sizing/scaling guide: **`../docs/DRIVE_SIZING.md`**.
+
+## Clearance-aware planner (`clearance.py` + `plan.py`)
+
+Collision-safe move generation for G-code:
+
+- **`clearance.py`** — ground-truth bend-cell clearance: exact body poses from the MuJoCo
+  model, distances against the **real non-convex STL meshes** (scipy KD-trees). The formed
+  wire is fixed and the head orbits it; the fixed die exit is excluded so only *avoidable*
+  swing/rotation hits are flagged.
+- **`plan.py`** (`../py/bin/python plan.py <example>`) — per bend, chooses the head-rotation
+  direction (short vs **long-way backtrack**) + a **feed-to-clear**; `plan.verify()` replays
+  the whole interpolated motion and hard-fails any frame below margin.
+- **Visualize:** `make anim-view NAME=chair ARGS=--plan` (or `make anim … ARGS=--plan`) —
+  planned moves, wire coloured by live clearance (green/amber/red).
+
 ## Other tools
 
-- **`machine.py`** — single source of truth for the machine parameters (axis
-  heights, tube, mandrel/pin/die, wire, gear ratio, `BEND_RADIUS`, the limits).
+- **`machine.py`** — single source of truth for the machine parameters (axis heights, tube,
+  mandrel/pin/die, wire, gear ratio + cycloid drive + motor/driver, `BEND_RADIUS`, limits).
 - **`consistency.py`** (`make check-consistency`) — asserts `machine.py` matches
   the CAD constants so they can't drift.
 - **`check_pin.py`** (`make check-pin`) — sweeps the axes and reports the bend
