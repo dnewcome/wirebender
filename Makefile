@@ -141,6 +141,13 @@ cycloid:                           ## cycloidal disc + eccentric shaft (PINS=30 
 check-cyclo:                       ## assert the disc/shaft fit the ring + write build/cycloid_assembly.stl (PINS=30 to check a scaled drive)
 	$(if $(PINS),WB_RING_PINS=$(PINS),) $(PY) cad/check_cyclo.py
 
+cyclo-drive:                       ## build a COMPLETE scaled drive (PINS=30 MOTOR=nema23): ring+disc+shaft+base+end_cap, then fit-check
+	$(if $(PINS),WB_RING_PINS=$(PINS),) $(if $(MOTOR),WB_MOTOR=$(MOTOR),) $(PY) cad/housing.py
+	$(if $(PINS),WB_RING_PINS=$(PINS),) $(PY) cad/cycloid.py
+	$(if $(PINS),WB_RING_PINS=$(PINS),) $(if $(MOTOR),WB_MOTOR=$(MOTOR),) $(PY) cad/cyclo_base.py
+	$(if $(PINS),WB_RING_PINS=$(PINS),) $(PY) cad/end_cap.py
+	$(if $(PINS),WB_RING_PINS=$(PINS),) $(PY) cad/check_cyclo.py
+
 clean:                             ## delete generated STLs/STEPs/meshes/model
 	rm -f build/*.stl build/*.step sim/meshes/*.stl sim/wirebender.xml
 

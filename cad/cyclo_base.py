@@ -25,24 +25,32 @@ from build123d import (Align, Axis, BuildLine, BuildPart, BuildSketch, Box, Cone
                         Plane, Polyline, Pos, RegularPolygon, export_stl, extrude, make_face,
                         revolve)
 
-SQ = 42.0                 # NEMA17 footprint (square plate)
+# Motor mount — set by env WB_MOTOR (nema17 default; nema23 for the bigger drive). sq=footprint,
+# bolt=half the 4-bolt pitch, clear/csk=mount-screw clearance + flat-head csk Ø, pilot=register Ø.
+MOTORS = {
+    "nema17": dict(sq=42.0, bolt=15.5, clear=3.4, csk=6.5, pilot=22.0),   # M3 mount, Ø22 pilot
+    "nema23": dict(sq=56.4, bolt=23.57, clear=5.5, csk=10.0, pilot=38.1),  # M5 mount, Ø38.1 pilot
+}
+MOTOR = MOTORS[os.environ.get("WB_MOTOR", "nema17")]
+
+SQ = MOTOR["sq"]          # NEMA footprint (square plate)
 T = 9.0                   # overall thickness (z = 0 .. T)
 PLATE_T = 4.85            # square-plate TOP face (z); the stand-off land + boss rise above it
 LAND_OD = 33.0            # thin stand-off land at the boss base — LARGER Ø than the boss, so the
 LAND_H = 0.25             #   bearing/disk seats on this 0.25mm-proud land, stood off the flat face
 BOSS_OD = 30.05           # cyclo output / register boss Ø (≈ rothead CYC_OUT_D=30)
 
-# central output-bearing bore: (radius, z) profile, revolved about Z. Motor-side Ø28 recess
-# (z 0..2.5), then the bearing bore up to the top, finished with a 45° lead-in CHAMFER at the
-# mouth (Ø13->Ø14 over z 8.5..9) — NOT a counterbore relief, so the bearing pushes straight in.
-BORE = [(0.0, 0.0), (14.0, 0.0), (14.0, 2.5),
+# central output-bearing bore: (radius, z) profile, revolved about Z. Motor-side recess
+# (z 0..2.5) sized to clear the motor's register pilot, then the bearing bore up to the top,
+# finished with a 45° lead-in CHAMFER at the mouth (Ø13->Ø14 over z 8.5..9).
+RECESS_R = max(14.0, MOTOR["pilot"] / 2 + 1.0)   # motor-pilot clearance recess (Ø28 NEMA17, Ø40 NEMA23)
+BORE = [(0.0, 0.0), (RECESS_R, 0.0), (RECESS_R, 2.5),
         (6.0, 2.5), (5.5, 3.0), (5.5, 4.9),
         (6.5, 4.9), (6.5, 8.5), (7.0, 9.0), (0.0, 9.0)]
 
-NEMA_BOLT = 15.5          # NEMA17 4-bolt pattern at (±15.5, ±15.5)
-NEMA_CLEAR = 3.4          # M3 clearance (screws from the cyclo side into the motor's tapped face)
-NEMA_CSK = 6.5            # M3 flat-head countersink major Ø (90°) — Ø6.5 sinks the head ~0.25mm
-#                           below the face so it fully clears (a nominal Ø6 left the head slightly proud)
+NEMA_BOLT = MOTOR["bolt"]  # NEMA 4-bolt pattern at (±BOLT, ±BOLT)
+NEMA_CLEAR = MOTOR["clear"]  # mount-screw clearance (M3 NEMA17 / M5 NEMA23), from the cyclo side into the motor face
+NEMA_CSK = MOTOR["csk"]    # flat-head countersink major Ø (90°)
 CYC_BOLT_R = 10.125       # 6-bolt cyclo-housing pattern (matches end_cap.py BOLT_R)
 CYC_BOLT_D = 3.4          # M3 screw clearance through the boss (screws thread into the captive nuts)
 RECESS_FLOOR = 2.5        # Ø28 motor-side recess floor — the nut pockets open into it (pressed in from the back)
@@ -99,6 +107,6 @@ if __name__ == "__main__":
     import trimesh
     m = trimesh.load("build/cyclo_base.stl")
     print(f"cyclo_base: {SQ}x{SQ}x{T} plate + Ø{LAND_OD}x{LAND_H} stand-off land + Ø{BOSS_OD} boss  "
-          f"4x NEMA M3 csk @±{NEMA_BOLT}  6x cyclo bolts @ r{CYC_BOLT_R} w/ captive M3 nut pockets (AF{NUT_AF})  "
+          f"4x NEMA Ø{NEMA_CLEAR} csk @±{NEMA_BOLT}  6x cyclo bolts @ r{CYC_BOLT_R} w/ captive M3 nut pockets (AF{NUT_AF})  "
           f"bbox {[round(v,1) for v in bb.size]}  bodies:{len(m.split(only_watertight=False))}  "
           f"watertight:{m.is_watertight}")

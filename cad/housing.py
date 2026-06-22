@@ -38,6 +38,8 @@ SHELL_WALL = 2.5                    # radial wall outside the bore
 
 HEIGHT = 18.2
 EDGE_CH = 0.5                       # chamfer on the OD edges and the bore mouths
+OUTPUT_BRG_OD = 37.0                # 30x37 output bearing OD — the rotating ring registers on it.
+SEAT_H = 4.0                        # bearing-seat depth at the ring base
 PIN_PITCH = N_PINS * PITCH_PER_PIN  # pin-axis pitch radius (18.5 at 20 pins; crest at PIN_PITCH-PIN_R)
 R_BORE = PIN_PITCH                  # bore = the pin pitch circle (Ø37 at 20 pins)
 OD = 2 * (PIN_PITCH + SHELL_WALL)   # body OD (Ø42 at 20 pins)
@@ -74,7 +76,17 @@ def housing():
                 fillet(air.vertices(), ROOT_FILLET)
             add(air.sketch, mode=Mode.SUBTRACT)
         extrude(amount=PIN_Z1 - PIN_Z0)
-    return bp.part
+    part = bp.part
+    # Output-bearing seat: at 20:1 the bore IS the Ø37 bearing OD, so the bore doubles as the
+    # seat. As the ring scales up the bore grows past Ø37, so add a ring at the base that
+    # narrows it back to the bearing OD — keeps the 30x37 output bearing (and the base boss)
+    # reused at any ring size. No-op at 20:1 (bore already == bearing OD).
+    if R_BORE > OUTPUT_BRG_OD / 2 + 1e-6:
+        from build123d import Cylinder, Pos, Align
+        seat = (Pos(0, 0, 0) * Cylinder(R_BORE + 0.5, SEAT_H, align=(Align.CENTER, Align.CENTER, Align.MIN))
+                - Pos(0, 0, -1) * Cylinder(OUTPUT_BRG_OD / 2, SEAT_H + 2, align=(Align.CENTER, Align.CENTER, Align.MIN)))
+        part = part.fuse(seat)
+    return part
 
 
 if __name__ == "__main__":

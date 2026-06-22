@@ -17,13 +17,17 @@ off the vendor solid's circular edges (build/_endcap.step), with the flange clam
 """
 import math
 import os
+import sys
 
 from build123d import (Align, Axis, BuildLine, BuildPart, BuildSketch, Cylinder,
                         Plane, Polyline, Pos, export_stl, make_face, revolve)
 
-OD_TURNDOWN = 10.0       # mm off the vendor Ø42 flange -> Ø32, to clear the bend bracket
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from housing import OD as RING_OD        # cap follows the ring OD (scales with the pin count)
+
+OD_TURNDOWN = 10.0       # mm off the ring OD -> turned-down flange, to clear the bend bracket
 THICK = 6.5              # overall thickness (z = 0 .. 6.5)
-R_FLANGE = (42.0 - OD_TURNDOWN) / 2     # turned-down flange radius (16.0)
+R_FLANGE = (RING_OD - OD_TURNDOWN) / 2  # turned-down flange radius (16.0 at the Ø42 ring; scales up)
 
 BOLT_R = 10.125          # 6 bolt holes, 60° apart
 N_BOLTS = 6
