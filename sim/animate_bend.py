@@ -111,18 +111,28 @@ def _sphere(p, r_mm, rgba):
             f'size="{r_mm*0.001:.5f}" rgba="{rgba}" contype="0" conaffinity="0"/>')
 
 
-def _wire_body(W, fault_pt=None):
+def _gap_color(gap):
+    """Formed-wire colour by live clearance margin: red collision / amber tight / green clear."""
+    import plan as _pl
+    if gap < 0:
+        return "0.95 0.15 0.15 1"
+    if gap < _pl.MARGIN:
+        return "0.95 0.78 0.12 1"
+    return "0.25 0.85 0.35 1"
+
+
+def _wire_body(W, fault_pt=None, formed_rgba=C_FORMED):
     g = [_capsule(B, [FEED_BACK_X, 0, ZAXIS_MM], WIRE_R_MM, C_STOCK)]
     for i in range(len(W) - 1):
         if np.linalg.norm(W[i + 1] - W[i]) > 1e-6:
-            g.append(_capsule(W[i], W[i + 1], WIRE_R_MM, C_FORMED))
+            g.append(_capsule(W[i], W[i + 1], WIRE_R_MM, formed_rgba))
     if fault_pt is not None:
         g.append(_sphere(fault_pt, WIRE_R_MM * 3.5, C_FAULT))
     return '    <body name="formed_wire">\n' + "\n".join(g) + "\n    </body>\n  </worldbody>"
 
 
-def _inject(xml, W, fault_pt=None):
-    return xml.replace("  </worldbody>", _wire_body(W, fault_pt), 1)
+def _inject(xml, W, fault_pt=None, formed_rgba=C_FORMED):
+    return xml.replace("  </worldbody>", _wire_body(W, fault_pt, formed_rgba), 1)
 
 
 def _set_joint(model, data, name, val_rad):
@@ -166,11 +176,11 @@ def _add_sphere_scn(scn, p, r_mm, rgba):
     scn.ngeom += 1
 
 
-def _draw_wire_scn(scn, W, fault_pt=None):
+def _draw_wire_scn(scn, W, fault_pt=None, rgba=None):
     """Redraw the formed wire + stock stub into the viewer's user scene."""
     scn.ngeom = 0
     _add_capsule_scn(scn, B, [FEED_BACK_X, 0, ZAXIS_MM], WIRE_R_MM, _rgba(C_STOCK))
-    rgba = _rgba(C_FORMED)
+    rgba = _rgba(C_FORMED) if rgba is None else rgba
     for i in range(len(W) - 1):
         if np.linalg.norm(W[i + 1] - W[i]) > 1e-6:
             _add_capsule_scn(scn, W[i], W[i + 1], WIRE_R_MM, rgba)
@@ -178,7 +188,8 @@ def _draw_wire_scn(scn, W, fault_pt=None):
         _add_sphere_scn(scn, fault_pt, WIRE_R_MM * 3.5, _rgba(C_FAULT))
 
 
-def view_live(name, program, springback=0.0, fps=20, fault_pt=None, fault_msg=None):
+def view_live(name, program, springback=0.0, fps=20, fault_pt=None, fault_msg=None,
+              color_clear=False):
     """Play the bend program live in the interactive MuJoCo viewer (needs a display).
     The machine model loads once; the wire is drawn as user-scene capsules each frame.
     If fault_pt is set, the program was truncated at the violating bend: play up to
@@ -202,7 +213,11 @@ def view_live(name, program, springback=0.0, fps=20, fault_pt=None, fault_msg=No
                 if not viewer.is_running():
                     break
                 _set_machine(model, data, tube_deg, bend_deg)
-                _draw_wire_scn(viewer.user_scn, W)
+                col = None
+                if color_clear:
+                    import clearance as _cl
+                    col = _rgba(_gap_color(_cl.clearance(W, tube_deg, bend_deg)["min"]))
+                _draw_wire_scn(viewer.user_scn, W, rgba=col)
                 viewer.sync()
                 time.sleep(1.0 / fps)
             if fault_pt is not None and frames:        # halt: hold the fault marker
@@ -225,7 +240,8 @@ def _fixed_camera(frames):
     return cam
 
 
-def render_gif(name, program, springback=0.0, fault_pt=None, fault_msg=None):
+def render_gif(name, program, springback=0.0, fault_pt=None, fault_msg=None,
+               color_clear=False):
     from PIL import Image
     frames = frames_for(program, springback=springback)
     # if faulted, hold the final (pre-fault) frame with a marker for ~1s of gif
@@ -238,7 +254,11 @@ def render_gif(name, program, springback=0.0, fault_pt=None, fault_msg=None):
     n = len(frames)
     for k, (tube_deg, bend_deg, W) in enumerate(frames):
         fp = fault_pt if (fault_pt is not None and k >= n - 16) else None
-        tmp.write_text(_inject(base_xml, W, fault_pt=fp))
+        fc = C_FORMED
+        if color_clear:
+            import clearance as _cl
+            fc = _gap_color(_cl.clearance(W, tube_deg, bend_deg)["min"])
+        tmp.write_text(_inject(base_xml, W, fault_pt=fp, formed_rgba=fc))
         model = mujoco.MjModel.from_xml_path(str(tmp))   # geom count changes as the wire grows
         data = mujoco.MjData(model)
         _set_machine(model, data, tube_deg, bend_deg)
@@ -311,11 +331,22 @@ def main():
                     help="play live in the interactive MuJoCo viewer (needs a display)")
     ap.add_argument("--force", action="store_true",
                     help="ignore rule violations and animate the whole program anyway")
+    ap.add_argument("--plan", action="store_true",
+                    help="animate the CLEARANCE-PLANNED moves (rotation backtracks + clearance "
+                         "feeds) with the wire coloured by live clearance (green/amber/red)")
     args = ap.parse_args()
     name, program = _resolve_program(args.program, args.piece, args.tol)
 
+    if args.plan:                                   # swap in the planner's safe move sequence
+        import plan
+        res = plan.plan(program, springback=args.springback)
+        for m in res["moves"]:
+            print(plan._fmt(m))
+        program = plan.plan_to_program(program, springback=args.springback)
+        name += "_planned"
+
     fault = None
-    if not args.force:
+    if not args.force and not args.plan:
         _, fault = _check_program(program, args.springback)
     run_prog = program[:fault["op_index"]] if fault else program
     fault_pt = B if fault else None
@@ -323,10 +354,10 @@ def main():
 
     if args.view:
         view_live(name, run_prog, springback=args.springback,
-                  fault_pt=fault_pt, fault_msg=fault_msg)
+                  fault_pt=fault_pt, fault_msg=fault_msg, color_clear=args.plan)
     else:
         render_gif(name, run_prog, springback=args.springback,
-                   fault_pt=fault_pt, fault_msg=fault_msg)
+                   fault_pt=fault_pt, fault_msg=fault_msg, color_clear=args.plan)
     if fault:
         print(fault["msg"] + "  — sim halted (use --force to override)")
         raise SystemExit(2)

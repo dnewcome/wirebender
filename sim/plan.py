@@ -101,6 +101,21 @@ def plan(program, springback=0.0, wire_r=cl.WIRE_R):
     return dict(moves=moves, ok=ok)
 
 
+def plan_to_program(program, **kw):
+    """Flatten the planned moves into a flat (op, val) sequence — signed rotations
+    (incl. long-way backtracks) and clearance feeds — i.e. what the machine actually
+    runs. Used by the animator (--plan) and, later, the G-code emitter."""
+    seq = []
+    for m in plan(program, **kw)["moves"]:
+        if m["kind"] == "feed":
+            seq.append(("feed", m["mm"]))
+        elif m["kind"] == "rotate":
+            seq.append(("rotate", m["deg"]))
+        elif m["kind"] == "bend":
+            seq.append(("bend", m["deg"]))
+    return seq
+
+
 def _fmt(m):
     k = m["kind"]
     if k == "feed":
