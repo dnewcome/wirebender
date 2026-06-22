@@ -6,9 +6,12 @@ bending job, so you can size a machine for a job (or a job for a machine):
 
   1. TORQUE to generate the bend (motor side):
        required = process_factor · σy · Z_plastic(section)         [grows as d³]
-       available = motor_torque · usable_frac · DRIVE_RATIO · eff
-     A stepper has no overload margin — if required > available it stalls and skips
-     (exactly the 0.150" failure: pancake NEMA17 at the ceiling).
+       available = (rated_torque/rated_current · set_current) · usable_frac · RATIO · eff
+     Stepper torque is set by PHASE CURRENT, so the model works back from a target wire to
+     the phase current it needs — hence the DRIVER class to spec per machine size. A stepper
+     has no overload margin: if you under-set the current you stall (the 0.150" bench stall =
+     driver set below the ~1.6A that wire needs). If the required current exceeds the motor's
+     rated current, no driver setting helps — it's a bigger-motor / more-ratio problem.
 
   2. CAPACITY of the printed disc (structural side):
        the output torque reacts through the 6 carrier rollers; the roller→disc-hole
@@ -22,16 +25,21 @@ Section model: solid round wire  Z = d³/6;  tube  Z = (do³−di³)/6  (kind='t
 wall=…). NOTE for tube the torque model is necessary-but-not-sufficient — tube also
 needs a mandrel/wiper against wrinkling + ovalisation, which this does NOT model yet.
 
-    python drive_model.py                 # capability table for the current machine
-    python drive_model.py --material pa-cf
+    python drive_model.py                              # current machine + driver-current table
+    python drive_model.py --current 1.5                # what a 1.5A driver setting can bend
+    python drive_model.py --rated-torque 3 --rated-current 4   # spec a NEMA23 for a bigger machine
 """
 from __future__ import annotations
 
 import argparse
 
-from machine import (DRIVE_RATIO, DRIVE_EFF, MOTOR_HOLDING_TORQUE, MOTOR_USABLE_FRAC,
-                     BEND_PROCESS_FACTOR, CARRIER_R, CARRIER_ROLLER_D, DISC_FACE_W,
-                     N_DISCS, N_CARRIER)
+from machine import (DRIVE_RATIO, DRIVE_EFF, MOTOR_RATED_TORQUE, MOTOR_RATED_CURRENT,
+                     MOTOR_SET_CURRENT, MOTOR_USABLE_FRAC, BEND_PROCESS_FACTOR,
+                     CARRIER_R, CARRIER_ROLLER_D, DISC_FACE_W, N_DISCS, N_CARRIER)
+
+# Stepper-driver classes by usable continuous phase current (A) — for the "what driver" hint.
+DRIVERS = [("A4988", 1.0), ("DRV8825", 1.7), ("TMC2209", 1.7), ("TB6600", 3.5),
+           ("DM542 / TMC5160", 4.0), ("DM860 / closed-loop", 6.0)]
 
 # ── design references ────────────────────────────────────────────────────────
 # Printable-material BEARING allowable (sustained, derated for creep/heat), MPa.
@@ -63,9 +71,36 @@ def bend_torque(d, sigma_y, kind="wire", wall=None, process=BEND_PROCESS_FACTOR)
     return process * sigma_y * z / 1000.0                 # MPa·mm³ = N·mm -> N·m
 
 
-def drive_output_torque(motor_holding=MOTOR_HOLDING_TORQUE):
+def motor_torque(set_current=MOTOR_SET_CURRENT, rated_torque=MOTOR_RATED_TORQUE,
+                 rated_current=MOTOR_RATED_CURRENT):
+    """Usable motor torque (N·m) at a driver current setting. Torque ~ current up to the
+    rated current; beyond rated it saturates (clamped) and just makes heat."""
+    return (rated_torque / rated_current) * min(set_current, rated_current) * MOTOR_USABLE_FRAC
+
+
+def drive_output_torque(set_current=MOTOR_SET_CURRENT, **mk):
     """Deliverable output torque (N·m) = usable motor torque · ratio · efficiency."""
-    return motor_holding * MOTOR_USABLE_FRAC * DRIVE_RATIO * DRIVE_EFF
+    return motor_torque(set_current, **mk) * DRIVE_RATIO * DRIVE_EFF
+
+
+def current_for_torque(out_torque, rated_torque=MOTOR_RATED_TORQUE, rated_current=MOTOR_RATED_CURRENT):
+    """Phase current (A) needed to deliver `out_torque` at the output — the DRIVER requirement.
+    = (motor torque needed) / (torque-per-amp). May exceed the motor's rated current, in which
+    case this motor can't do it at any driver setting (need a bigger motor or more ratio)."""
+    motor_need = out_torque / (DRIVE_RATIO * DRIVE_EFF * MOTOR_USABLE_FRAC)
+    return motor_need / (rated_torque / rated_current)
+
+
+def current_for_stock(d, sigma_y, kind="wire", wall=None, **mk):
+    return current_for_torque(bend_torque(d, sigma_y, kind, wall), **mk)
+
+
+def driver_for(current):
+    """Smallest driver class that can source `current`."""
+    for name, cap in DRIVERS:
+        if current <= cap:
+            return name
+    return ">6A (industrial)"
 
 
 # ── printed-disc capacity ────────────────────────────────────────────────────
@@ -98,9 +133,10 @@ def _invert_d(t_out, sigma_y, kind, wall, process=BEND_PROCESS_FACTOR):
     return (6.0 * t_out * 1000.0 / (process * sigma_y)) ** (1 / 3.0)
 
 
-def max_bendable(sigma_y, material, motor_holding=MOTOR_HOLDING_TORQUE, kind="wire", wall=None):
+def max_bendable(sigma_y, material, set_current=MOTOR_SET_CURRENT, kind="wire", wall=None,
+                 rated_torque=MOTOR_RATED_TORQUE, rated_current=MOTOR_RATED_CURRENT):
     """Largest Ø this machine can bend, and which limit binds."""
-    t_motor = drive_output_torque(motor_holding)
+    t_motor = drive_output_torque(set_current, rated_torque=rated_torque, rated_current=rated_current)
     t_disc = disc_torque_limit(material)
     d_motor = _invert_d(t_motor, sigma_y, kind, wall)
     d_disc = _invert_d(t_disc, sigma_y, kind, wall)
@@ -108,35 +144,50 @@ def max_bendable(sigma_y, material, motor_holding=MOTOR_HOLDING_TORQUE, kind="wi
     return min(d_motor, d_disc), binding, d_motor, d_disc
 
 
-def capability(d, sigma_y, material, motor_holding=MOTOR_HOLDING_TORQUE, kind="wire", wall=None):
+def capability(d, sigma_y, material, set_current=MOTOR_SET_CURRENT, kind="wire", wall=None,
+               rated_torque=MOTOR_RATED_TORQUE, rated_current=MOTOR_RATED_CURRENT):
     req = bend_torque(d, sigma_y, kind, wall)
-    avail = drive_output_torque(motor_holding)
+    avail = drive_output_torque(set_current, rated_torque=rated_torque, rated_current=rated_current)
     stress = carrier_bearing_stress(req)
     allow = MATERIALS[material]
+    req_i = current_for_stock(d, sigma_y, kind, wall, rated_torque=rated_torque, rated_current=rated_current)
     ok = req <= avail and stress <= allow
-    return dict(req=req, avail=avail, t_margin=avail / req, stress=stress,
-                allow=allow, s_margin=allow / stress, ok=ok)
+    return dict(req=req, avail=avail, t_margin=avail / req, stress=stress, allow=allow,
+                s_margin=allow / stress, ok=ok, req_current=req_i)
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--material", default="pa-cf", choices=MATERIALS)
-    ap.add_argument("--motor", type=float, default=MOTOR_HOLDING_TORQUE, help="bend-motor holding torque (N·m)")
+    ap.add_argument("--current", type=float, default=MOTOR_SET_CURRENT, help="driver phase-current SET point (A)")
+    ap.add_argument("--rated-torque", type=float, default=MOTOR_RATED_TORQUE, help="motor holding torque at rated current (N·m)")
+    ap.add_argument("--rated-current", type=float, default=MOTOR_RATED_CURRENT, help="motor rated phase current (A)")
     a = ap.parse_args()
-    t_out = drive_output_torque(a.motor)
-    print(f"Drive: {DRIVE_RATIO:.0f}:1, motor {a.motor} N·m · {MOTOR_USABLE_FRAC} usable · {DRIVE_EFF} eff "
-          f"-> {t_out:.1f} N·m output")
-    print(f"Disc:  {N_DISCS}×{DISC_FACE_W}mm {a.material} discs, {N_CARRIER}× Ø{CARRIER_ROLLER_D} rollers @ r{CARRIER_R} "
-          f"-> capacity {disc_torque_limit(a.material):.1f} N·m output\n")
-    print(f"{'stock':>13} {'Ø':>5} {'σy':>5} {'need':>6} {'have':>6} {'torq×':>6} {'discMPa':>8} {'disc×':>6}  verdict")
+    mk = dict(rated_torque=a.rated_torque, rated_current=a.rated_current)
+    t_out = drive_output_torque(a.current, **mk)
+    tpa = a.rated_torque / a.rated_current
+    print(f"Motor: {a.rated_torque} N·m @ {a.rated_current} A  ({tpa:.3f} N·m/A) · set {a.current} A · "
+          f"{MOTOR_USABLE_FRAC} usable")
+    print(f"Drive: {DRIVE_RATIO:.0f}:1 · {DRIVE_EFF} eff  ->  {t_out:.1f} N·m output at the set current")
+    print(f"Disc:  {N_DISCS}×{DISC_FACE_W}mm {a.material}, {N_CARRIER}× Ø{CARRIER_ROLLER_D} rollers @ r{CARRIER_R}"
+          f"  -> capacity {disc_torque_limit(a.material):.1f} N·m\n")
+    print(f"{'stock':>13} {'Ø':>5} {'need':>6} {'req A':>6} {'driver':>16} {'disc×':>6}  verdict")
     for label, d, sy in STOCK:
-        c = capability(d, sy, a.material, a.motor)
-        v = "OK" if c["ok"] else ("STALL" if c["req"] > c["avail"] else "DISC")
-        print(f"{label:>13} {d:5.2f} {sy:5.0f} {c['req']:6.1f} {c['avail']:6.1f} {c['t_margin']:6.2f} "
-              f"{c['stress']:8.1f} {c['s_margin']:6.2f}  {v}")
-    dmax, bind, dm, dd = max_bendable(400, a.material, a.motor)
-    print(f"\nMax bendable (σy=400, {a.material}): Ø{dmax:.2f} mm  (binds on {bind}; "
-          f"torque-limit Ø{dm:.2f}, disc-limit Ø{dd:.2f})")
+        c = capability(d, sy, a.material, a.current, **mk)
+        ri = c["req_current"]
+        if ri <= a.current:
+            v = "OK"
+        elif ri <= a.rated_current:
+            v = f"raise I to {ri:.1f}A"
+        else:
+            v = "MOTOR (exceeds rated)"
+        if c["s_margin"] < 1:
+            v = "DISC"
+        print(f"{label:>13} {d:5.2f} {c['req']:6.1f} {ri:6.2f} {driver_for(ri):>16} {c['s_margin']:6.2f}  {v}")
+    for lbl, cur in (("set current", a.current), ("rated current", a.rated_current)):
+        dmax, bind, dm, dd = max_bendable(400, a.material, cur, **mk)
+        print(f"\nMax bendable @ {lbl} ({cur}A, σy=400, {a.material}): Ø{dmax:.2f} mm  (binds on {bind}; "
+              f"torque Ø{dm:.2f}, disc Ø{dd:.2f})")
 
 
 if __name__ == "__main__":

@@ -52,10 +52,17 @@ CARRIER_ROLLER_D  = 5.0       # cycloid.py ROLLER_D — Ø of the alu carrier ro
 N_CARRIER         = 6         # cycloid.py N_CARRIER
 DRIVE_EFF         = 0.80      # cycloidal mechanical efficiency (estimate)
 
-# ── bend motor (Axis 3) + bending mechanics ─────────────────────────────────
-MOTOR_HOLDING_TORQUE = 0.22   # N·m — current pancake NEMA17 (the weak link; full NEMA17 ≈0.45, NEMA23 ≈1.5)
-MOTOR_USABLE_FRAC    = 0.70   # usable fraction of holding torque before skipping (slow bend)
-BEND_PROCESS_FACTOR  = 1.6    # required torque / ideal plastic moment (friction + work-harden + over-bend)
+# ── bend motor (Axis 3) + driver + bending mechanics ────────────────────────
+# Stepper torque is set by PHASE CURRENT: holding torque is quoted at the motor's rated
+# current and scales ~linearly with current below that, then saturates. So the DRIVER's
+# current (its set point AND its max capability) — not the motor's physical size — is what
+# actually delivers torque. drive_model.py turns a target wire (+ the drive ratio) into the
+# phase current the machine needs, hence the driver class — this sizes drivers per machine.
+MOTOR_RATED_TORQUE  = 0.65    # N·m holding torque AT rated current (datasheet)
+MOTOR_RATED_CURRENT = 2.0     # A/phase rated current (the torque above is specified at this)
+MOTOR_SET_CURRENT   = 2.0     # A/phase the driver is actually set to (<= rated AND <= driver max)
+MOTOR_USABLE_FRAC   = 0.70    # usable fraction of holding torque before skipping (slow bend)
+BEND_PROCESS_FACTOR = 1.6     # required torque / ideal plastic moment (friction + work-harden + over-bend)
 
 # ── rotation drive: head pinion meshing the fixed gear (cad/base.py, rothead.py) ──
 FIXED_GEAR_TEETH = 40         # base.py FG_TEETH (the fixed gear on the deck)

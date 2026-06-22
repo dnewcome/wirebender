@@ -104,8 +104,8 @@ rules:                             ## check a program against the bend-cell limi
 check-consistency:                 ## assert sim/machine.py matches the CAD constants
 	$(PY) sim/consistency.py
 
-drive:                             ## what stock can the machine bend? torque + printed-disc limits (MATERIAL=pa-cf MOTOR=1.5)
-	cd sim && ../$(PY) drive_model.py $(if $(MATERIAL),--material $(MATERIAL),) $(if $(MOTOR),--motor $(MOTOR),)
+drive:                             ## what stock can the machine bend + driver current needed (MATERIAL=pa-cf CURRENT=1.5)
+	cd sim && ../$(PY) drive_model.py $(if $(MATERIAL),--material $(MATERIAL),) $(if $(CURRENT),--current $(CURRENT),)
 
 sleeve: build/sleeve.stl           ## printed 1/4"-tube -> 608-bearing adapter (print x2)
 
