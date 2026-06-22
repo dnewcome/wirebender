@@ -135,11 +135,11 @@ cyclo-base: build/cyclo_base.stl    ## parametric cycloidal NEMA17 base (reverse
 
 bend-disc: build/bend_disc.stl      ## Ø60x2 disc bolting to the arbor posts; csk M3 mounts + centre/10mm bend-pin holes
 
-cycloid: build/cycloid_disc.stl    ## cycloidal disc + eccentric shaft (the last vendor-sealed internals; print disc x2)
-	$(PY) cad/cycloid.py >/dev/null && echo "  build/: cycloid_disc.stl (print x2)  cycloid_shaft.stl"
+cycloid:                           ## cycloidal disc + eccentric shaft (PINS=30 scales the ring -> ratio, keeping lobe size; default 20)
+	$(if $(PINS),WB_RING_PINS=$(PINS),) $(PY) cad/cycloid.py
 
-check-cyclo:                       ## assert the disc/shaft fit the ring + write build/cycloid_assembly.stl to view
-	$(PY) cad/check_cyclo.py
+check-cyclo:                       ## assert the disc/shaft fit the ring + write build/cycloid_assembly.stl (PINS=30 to check a scaled drive)
+	$(if $(PINS),WB_RING_PINS=$(PINS),) $(PY) cad/check_cyclo.py
 
 clean:                             ## delete generated STLs/STEPs/meshes/model
 	rm -f build/*.stl build/*.step sim/meshes/*.stl sim/wirebender.xml

@@ -24,19 +24,26 @@ from build123d import (Axis, BuildLine, BuildPart, BuildSketch, Circle, Mode, Pl
                         PolarLocations, Polyline, add, export_stl, extrude, fillet,
                         make_face, revolve)
 
-OD = 42.0
+# ── ring SCALE — N_PINS is the single knob = the single-stage reduction (carrier fixed) ──
+# Keeping the pin spacing (PITCH_PER_PIN) and pin size (PIN_R) fixed grows the body with pin
+# count while the LOBES stay the same size/shape, so the disc profile, eccentric shaft and
+# bearings all carry over unchanged (only the ring + disc OD grow). Set N_PINS (or env
+# WB_RING_PINS) to scale: 20 -> the validated Ø42 / 20:1 drive; 30 -> ~Ø60 / 30:1.
+N_PINS = int(os.environ.get("WB_RING_PINS", "20"))
+PITCH_PER_PIN = 0.925               # pin spacing /2π  (= 18.5/20) — FIXED => constant lobe size
+PIN_R = 1.5                         # Ø3 crest pins (convex) — fixed lobe feature
+ROOT_FILLET = 0.5                   # concave r0.5 fillet at each pin root (2 per tooth)
+PIN_Z0, PIN_Z1 = 4.0, 14.2         # axial extent of the toothed section (height fixed across sizes)
+SHELL_WALL = 2.5                    # radial wall outside the bore
+
 HEIGHT = 18.2
 EDGE_CH = 0.5                       # chamfer on the OD edges and the bore mouths
-R_OUT = OD / 2                      # 21.0 main OD
-R_OUT_CH = R_OUT - EDGE_CH          # 20.5 at the chamfered top/bottom edges
-R_BORE = 18.5                       # Ø37 bore
-R_BORE_CH = R_BORE + EDGE_CH        # 19.0 at the chamfered bore mouths
-
-N_PINS = 20
-PIN_R = 1.5                         # Ø3 crest pins (convex)
-PIN_PITCH = 18.5                    # pin-axis pitch radius (crest at r17.0, into the bore)
-PIN_Z0, PIN_Z1 = 4.0, 14.2         # axial extent of the toothed section
-ROOT_FILLET = 0.5                   # concave r0.5 fillet at each pin root (2 per tooth)
+PIN_PITCH = N_PINS * PITCH_PER_PIN  # pin-axis pitch radius (18.5 at 20 pins; crest at PIN_PITCH-PIN_R)
+R_BORE = PIN_PITCH                  # bore = the pin pitch circle (Ø37 at 20 pins)
+OD = 2 * (PIN_PITCH + SHELL_WALL)   # body OD (Ø42 at 20 pins)
+R_OUT = OD / 2
+R_OUT_CH = R_OUT - EDGE_CH          # chamfered top/bottom OD edges
+R_BORE_CH = R_BORE + EDGE_CH        # chamfered bore mouths
 # The vendor also has a 0.25mm chamfer on each pin-crest end; it's omitted here — it is below
 # FDM resolution and OCC's chamfer op is unreliable on the fused toothed solid (square pin ends).
 
