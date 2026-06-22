@@ -243,6 +243,31 @@ straight between bends, bend-radius limit) — reuse `interference.py` per path.
 - [ ] Calibrate bend angle vs motor steps; measure springback; feed back to model.
 - [ ] Produce a test shape (square / circle) and compare to the predicted part.
 
+## Future direction — clamp-on "crawler" bender (north star, not canonical)
+
+The only ground-fixed part of the machine is the **feeder**; the rotation axis, cycloid, and
+mandrel/pin all already ride the head. So invert the feed axis — instead of *pushing wire
+through a fixed head*, **crawl the self-contained head along fixed stock** (clamp onto a
+tube/rod and traverse it, bending in place). A portable / in-situ former: no spool, no bench.
+
+- **The software is already relative.** `bend_model` treats "feed N mm" as the relative
+  advance between wire and head, so the forward model, slicer, clearance planner, and homing
+  carry over unchanged — feed just remaps from extruder-steps to **crawl distance** along the
+  tube. The existing toolchain already describes a crawler.
+- **Three mechanical changes:** (1) a **crawl drive** that grips + translates precisely along
+  the tube (friction wheels / pinion-on-clamped-rack / leadscrew) — slip = lost feed, so it
+  wants a **closed-loop encoder** (dovetails with the closed-loop-stepper idea for the stall
+  problem); (2) an **openable / split rotary bearing** so Axis 2 can encircle a clamped tube
+  (today it rotates about the wire with the wire passing through); (3) **anchoring** so the
+  bend reaction (≈27 N·m at 1/4″) reacts through the grip without the crawler spinning/sliding.
+- **Hard limit — tube bending in place.** A free wire forms only at its trailing end, so
+  crawling **wire/rod** (or large-radius, thick-wall tube) progressively **from a free end** is
+  the same problem already solved (the formed part trails the crawler like it trails the fixed
+  head today). But tight-radius thin-wall tube needs an internal draw-mandrel/wiper, which
+  **can't be threaded into a continuous tube mid-span while crawling** — so the crawler is
+  naturally a wire/rod or conduit-style large-radius machine, not a tight thin-wall tube bender.
+- Orthogonal to the canonical 14 ga machine — pursue only after that's working.
+
 ## Notes / decisions
 
 - MIG feeder (1KGSSJ-B) chosen for the wire feed; brushed motor + gear reduction
