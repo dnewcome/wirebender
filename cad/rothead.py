@@ -21,11 +21,9 @@ from parts import nema17, NEMA, NEMA_BOLT
 from pinion import pinion
 from cyclo_base import cyclo_base as _cyclo_base
 
-# Sweep Dynamics 20:1 micro-cycloidal STEP (vendor/paid geometry — NOT committed).
-# Point this at your local copy; the assembly falls back to a block if it's absent.
-CYCLO_STEP = os.path.expanduser(
-    "~/Downloads/cad-files/sweepdynamics/micro-cycloidal/20-1 Micro Cycloidal.step")
-CYCLO_H = 25.9          # cycloidal body depth; output face on one end
+# The bend actuator is represented by primitives below (parts.nema17 + a cyclo block);
+# the build reads NO purchased geometry. The real cyclo is a bought part,
+# rebuilt parametrically in housing.py / cyclo_base.py / cycloid.py / end_cap.py.
 
 # ── shared with base.py ─────────────────────────────────────────────
 FG_TEETH, FG_MODULE, FG_W, PIN_TEETH = 40, 1.5, 8.0, 12

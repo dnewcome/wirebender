@@ -1,6 +1,6 @@
 """cycloid.py — the cycloidal DISC + ECCENTRIC SHAFT, the last vendor-sealed internals.
 
-These are the two moving parts inside the Sweep Dynamics cartridge that were NOT yet
+These are the two moving parts inside the cycloidal cartridge that were NOT yet
 parametric (housing.py = the ring, end_cap.py = the fixed output-pin carrier, cyclo_base.py
 = the input/output base were already rebuilt). With these, the whole 20:1 drive is
 parametric and you can scale ratio / face width / material yourself.

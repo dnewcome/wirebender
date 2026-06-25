@@ -1,6 +1,6 @@
 """housing.py — cyclo Housing_v1 (the rotating internal-gear ring), rebuilt parametric.
 
-Fully parametric build123d reconstruction of the Sweep Dynamics micro-cycloidal Housing,
+Fully parametric build123d reconstruction of the micro-cycloidal Housing,
 with NO dependency on the vendor STEP/STL. The geometry was read off the vendor B-rep once
 (face types + exact radii / z-planes) and is reproduced here as named features:
 

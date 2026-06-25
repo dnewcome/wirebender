@@ -28,7 +28,7 @@ Wire is fed from a spool using a 3D printer extruder, through a rotating feed tu
 ### Bending Head
 - A cantilevered head clamps the end of the passive feed tube and **rotates about
   the wire axis** (Axis 2), carrying the bend mechanism around with it.
-- **Bend drive (Axis 3):** a 20:1 Sweep Dynamics micro-cycloidal drive + pancake
+- **Bend drive (Axis 3):** a 20:1 micro-cycloidal drive + pancake
   NEMA17. A pin on the cycloidal output sweeps the wire around a fixed mandrel —
   single-pin bending; bend radius is set by the mandrel.
 - **Rotation drive (Axis 2):** a pancake NEMA17 + a 12T pinion meshing a fixed 40T
@@ -55,7 +55,7 @@ make assembly     # full machine as one build123d STEP (build/assembly.step)
 make              # list all targets
 ```
 
-The **bend drive is fully parametric** — no vendor file is read at build time. The
+The **bend drive is fully parametric** — no external CAD file is read at build time. The
 **canonical machine targets 14 ga steel on the current motor** (the 20:1 / Ø42 drive), and
 the same generator scales to heavier stock by one knob:
 
@@ -69,9 +69,9 @@ planner, and homing. Generated artifacts land in `build/` and `sim/meshes/` (bot
 — reproduce from source); `STRUCTURE.md` is the repo layout, `PLAN.md` the roadmap, and
 `sim/README.md` the simulation + G-code toolchain.
 
-The original Sweep Dynamics cycloid geometry (STEP / `nema-17-cycloid-base.stl`) is **paid
-and not redistributed**; it was measured once to validate the parametric rebuild and is no
-longer needed to build any part.
+The cycloid internals were **validated once against a purchased reference part** (not
+redistributed), then rebuilt fully parametrically — no external CAD file is needed to build
+any part.
 
 ## Checklist
 

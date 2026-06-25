@@ -268,6 +268,42 @@ tube/rod and traverse it, bending in place). A portable / in-situ former: no spo
   naturally a wire/rod or conduit-style large-radius machine, not a tight thin-wall tube bender.
 - Orthogonal to the canonical 14 ga machine — pursue only after that's working.
 
+## Future direction — threadless-ball-screw ("chuck") feeder (not canonical)
+
+Alternative to the geared pinch feeder (1KGSSJ-B repurpose): a **threadless ball screw** /
+Uhing rolling-ring drive — 3 bearings skewed at angle α, closed like a self-centering chuck
+against the round stock; **spin the chuck** and the skewed rolling drives the stock axially.
+The wire is the "screw", the chuck is the "nut"; the formed bends downstream hold the wire
+from rotating, so it only translates.
+
+- **Kinematics:** `feed_per_rev = π · D_stock · tan(α)` (e.g. 1/4″ rod at 8° ≈ 2.8 mm/rev,
+  0.150″ wire at 8° ≈ 1.7 mm/rev). Note the **lead is stock-diameter dependent**, so feed
+  becomes a *calibrated per-stock* constant, not a fixed mm/step. Feed is now a **rotary axis**
+  (likely belted up from the chuck).
+- **Why it's attractive:** 3-point symmetric grip → **zero net side load** (wire stays
+  straight, unlike a 2-wheel pinch); **adjustable clamp = adjustable thrust** for heavier stock;
+  clean **bidirectional + unlimited travel** (serves the planner's feed-forward/back backtrack).
+- **Needs independent feed sensing.** It's a *friction* drive — under thrust it can slip and
+  silently lose feed length, and feed length sets bend spacing. Close the loop on *actual* wire
+  travel, not commanded chuck revs; that also absorbs the diameter-dependent lead and any α
+  drift. (Same closed-loop theme as the stall fix and the crawler crawl-drive.)
+  - **Preferred: non-contact laser optical sensor.** A laser-mouse motion sensor (VCSEL
+    speckle, e.g. ADNS-9800 class — *not* an LED imager; bright/shiny stock is the case laser
+    mice exist for) reads the wire's surface motion directly, so there's nothing of its own to
+    slip and no marring. Resolution is a non-issue (~25 µm/count at 1000 CPI vs ~0.1 mm needed).
+    Constraints: hold the wire in a **V-groove/bushing under the lens** at the ~2.4 mm focal
+    standoff (a round surface only shows a thin in-focus strip — easier on 1/4″ rod than thin
+    wire); align the sensor's X with the feed axis; **calibrate counts/mm per material+finish**;
+    and **fault on the surface-quality (SQUAL) register dropping** — a tracking dropout reads as
+    zero feed = the exact silent under-count we're guarding against (felt wiper ahead of it for
+    oil/scale). Speed/accel limits (~6 m/s) are far above feed.
+  - *Fallback / cross-check:* a decoupled measuring wheel + rotary encoder riding the wire
+    (robust on any finish, but can itself slip and marks the stock). Optical primary + wheel
+    sanity-check is the belt-and-suspenders option.
+- **Enables the crawler.** This *is* a candidate crawl-drive (see above): fix the tube, let the
+  spinning chuck react against it, and the whole head walks the stock — collapsing the last
+  ground-fixed part (the feeder) onto the head.
+
 ## Notes / decisions
 
 - MIG feeder (1KGSSJ-B) chosen for the wire feed; brushed motor + gear reduction

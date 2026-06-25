@@ -11,7 +11,9 @@ build/
 sim/meshes/
 sim/wirebender*.xml
 
-# vendor cycloid geometry (Sweep Dynamics, paid) — not redistributed. No longer read by
-# the build: cyclo_base.py is a parametric, vendor-independent rebuild. Kept only as a
-# local reference; safe to delete.
-nema-17-cycloid-base.stl
+# Never commit CAD solids/meshes anywhere in the tree — they're all either generated
+# (build/, sim/meshes/) or purchased reference parts; none belong in git. force-add
+# (git add -f) if you ever truly need one.
+*.stl
+*.step
+*.stp

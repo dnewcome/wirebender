@@ -4,7 +4,7 @@ Notes on what's worked well while building this machine, so we don't relearn it.
 
 ## Read the STEP, then re-create vendor geometry parametrically in build123d
 
-When working with a purchased part supplied as a STEP file (e.g. the Sweep Dynamics
+When working with a purchased part supplied as a STEP file (e.g. a
 `20-1 Micro Cycloidal.step` assembly), it pays to **inspect the B-rep directly** and then
 **re-create the geometry as a parametric build123d model** rather than carrying the vendor
 mesh around.
