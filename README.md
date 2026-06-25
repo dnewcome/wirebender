@@ -75,41 +75,46 @@ any part.
 
 ## Checklist
 
+*The CAD, the MuJoCo simulation, and the slicer/planner/drive-sizing toolchain are well
+advanced. The remaining open items are mostly physical fabrication, wiring, and on-machine
+calibration.*
+
 ### Mechanical Design
-- [ ] Finalize extruder motor mounting to the main assembly
-- [ ] Design or source the U-shaped sheet aluminum feed tube bearing bracket
-- [ ] Integrate tube rotation motor mount into the U-bracket design
-- [ ] Verify feed tube bearing selection and fit
-- [ ] Confirm toothed belt/pulley sizing for feed tube rotation axis
-- [ ] Validate bending head flange fits the chosen bending motor shaft
-- [ ] Test the bend pin / mandrel fit and geometry (`cad/bend_disc.py`)
-- [ ] Design wire guide / straightener between spool and extruder
+- [x] Parametric bending head — rotation + bend mounts and tube clamp (`cad/rothead.py`)
+- [x] Fully parametric cycloid drive — ring, disc, eccentric shaft, base, end cap; scales by
+  ratio/motor (`make cyclo-drive PINS=.. MOTOR=..`)
+- [x] Bend pin / mandrel geometry defined + clearance-checked in sim (`cad/bend_disc.py`, `make check-pin`)
+- [x] Feeder motor mount + bracket (`cad/feeder_motor_mount.py`, `cad/feeder_bracket.py`)
+- [x] Feed tube → 608-bearing sleeve adapter + bearing selection (`cad/sleeve.py`)
+- [x] Rotation drive sized — 12T pinion on a fixed 40T base gear (replaces the earlier belt/pulley idea)
+- [x] Homing-switch brackets, Axes 2 & 3 (`cad/home_switch.py` + `cad/arbor_mount.py` home tab)
+- [ ] U-shaped sheet-aluminum feed-tube bearing bracket (fabricate)
+- [ ] Wire guide / straightener between spool and feeder
 
 ### Electronics & Control
-- [ ] Select stepper drivers and confirm GRBL axis assignments
-  - Axis 1: wire feed (extruder)
-  - Axis 2: feed tube rotation (bend direction)
-  - Axis 3: bending head (bend degree)
+- [x] Axis assignments confirmed — Axis 1 wire feed, Axis 2 head rotation, Axis 3 bend
+- [x] Stepper-driver sizing + phase-current requirements modeled per machine (`make drive`, `docs/DRIVE_SIZING.md`)
+- [x] Axis limits + homing strategy defined (conventions in `sim/machine.py`, cycle in `sim/home.py`)
 - [ ] Wire up GRBL 1.1 board and stepper drivers
-- [ ] Tune stepper current limits and microstepping
-- [ ] Calibrate steps/mm for each axis
-- [ ] Define axis limits and homing strategy
+- [ ] Set driver current to rated + tune microstepping (bench)
+- [ ] Calibrate steps/mm for each axis (bench)
 
 ### Software / G-code
-- [ ] Decide on G-code generation workflow (CAM tool, custom post-processor, or hand-written)
-- [ ] Write or source a wire bending post-processor / path generator
-- [ ] Test basic feed, rotate, and bend sequences
-- [ ] Develop homing and initialization routine
+- [x] G-code workflow decided — model → slicer → clearance-aware planner → verified program
+- [x] Path generator / post-processor (`sim/slicer.py`, `sim/plan.py`)
+- [x] Clearance planner + whole-path collision verify (`sim/clearance.py`, `sim/plan.py`)
+- [x] Feed / rotate / bend sequences validated in sim (`make anim`, `make run`)
+- [x] Homing + initialization routine designed and simulated (`make home`)
 
-### Fabrication
-- [ ] Print the head pieces (`make head`) and test fit on the cycloid/rotation motors
-- [ ] Bend and drill U-bracket sheet aluminum pieces
-- [ ] Assemble feed tube with bearings into bracket
-- [ ] Full mechanical assembly and fit check
+### Fabrication (physical)
+- [ ] Print the head pieces (`make head`) and fit on the cycloid / rotation motors
+- [ ] Bend + drill the U-bracket sheet-aluminum pieces
+- [ ] Assemble feed tube with bearings into the bracket
+- [ ] Full mechanical assembly + fit check
 
-### Validation
-- [ ] Dry-run all axes (no wire) to verify travel and direction
+### Validation (bench)
+- [ ] Dry-run all axes, no wire — travel + direction (verified in sim; confirm on hardware)
 - [ ] First wire feed test with soft wire (e.g. aluminum) before steel
-- [ ] Calibrate bend angle vs. motor steps
-- [ ] Measure and compensate for springback in 14/16 ga steel
-- [ ] Produce a simple test shape (e.g. square, circle)
+- [ ] Calibrate bend angle vs. motor steps + `BEND_PROCESS_FACTOR`
+- [ ] Measure + compensate springback in 14/16 ga steel
+- [ ] Produce a simple test shape (square, circle)
